@@ -1,0 +1,28 @@
+# Added by the wow-vanilla-plus overlay, not by AzerothCore upstream.
+#
+# These six findings come from the full-history gitleaks run recorded as
+# actions run 34047712638 (19,451 commits, 2.39 GB, 47m17s, 6 findings).
+# Every one is a FALSE POSITIVE in third-party code vendored by upstream long
+# before this fork existed: high-entropy identifiers such as
+# `keycache->disk_blocks` clear the `generic-api-key` rule's entropy threshold.
+#
+# Nothing here is a credential, and none of it is ours to fix — rewriting
+# upstream history to satisfy a linter would make every future merge from
+# azerothcore/azerothcore-wotlk conflict.
+#
+# This file only affects the on-demand `full-history` job. The gating job scans
+# just the commits each push or PR introduces, so it never reaches these.
+# If a NEW fingerprint ever needs adding here, that is a decision to record —
+# do not append to this file to make a red build go green without reading it.
+
+# dep/mysqllite/mysys/mf_keycache.c — vendored MySQL (upstream commit, 2016-06-26)
+e8e94a0a663be0a1cefe704d8c6860a526b2d7e9:dep/mysqllite/mysys/mf_keycache.c:generic-api-key:395
+e8e94a0a663be0a1cefe704d8c6860a526b2d7e9:dep/mysqllite/mysys/mf_keycache.c:generic-api-key:482
+e8e94a0a663be0a1cefe704d8c6860a526b2d7e9:dep/mysqllite/mysys/mf_keycache.c:generic-api-key:705
+
+# deps/gsoap/stdsoap2.cpp — vendored gSOAP
+c6d38a97f9f9bd449cf914f4adc776e0acd384b1:deps/gsoap/stdsoap2.cpp:generic-api-key:4539
+
+# data/sql/base/db_auth/updates.sql — upstream SQL
+a689775891baad5ee39de1611d27d44f2c6a3ff5:data/sql/base/db_auth/updates.sql:generic-api-key:56
+785bb5ed6b2de97ed463b65d8a4503cdc54b4c9d:data/sql/base/db_auth/updates.sql:generic-api-key:58
