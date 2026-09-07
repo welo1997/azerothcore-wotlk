@@ -132,3 +132,15 @@ e2e/local/**
 !e2e/local/README.md
 e2e/go.work
 e2e/go.work.sum
+
+# --- wow-vanilla-plus overlay: credential shapes ---------------------------
+# The build generates .db_password.txt into this tree, and AzerothCore.gitignore
+# covers /.env* but not that name, leaving it untracked-and-not-ignored: the one
+# state a stray `git add -A` sweeps up. This fork is PUBLIC, so that mistake is
+# world-readable the moment it is pushed. Committed here rather than left to
+# .git/info/exclude because only a tracked rule survives a fresh clone.
+.db_password.txt
+*.password
+*password*.txt
+*credentials*
+*.secret
