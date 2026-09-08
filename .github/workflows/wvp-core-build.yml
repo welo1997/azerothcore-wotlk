@@ -61,20 +61,43 @@
 #   OVERLAY repository, not here, so building "with modules" on this fork builds
 #   upstream's module set and tells us nothing about ours.
 #
-# WHAT IT ACTUALLY COSTS
-#   Measured on this workflow's own first two runs, not estimated:
+# WHAT IT ACTUALLY COSTS, AND WHICH RUNS ARE SLOW
+#   Measured on this workflow's own first five runs, not estimated:
 #
-#     run 34212419657   cold ccache, nothing to restore     34m57s   green
-#     run 34215702542   warm ccache, one-line workflow diff  4m42s   green
+#     run 34212419657   pull_request  ci/wvp-core-build         34m57s   green
+#     run 34215702542   pull_request  ci/wvp-core-build          4m46s   green
+#     run 34216308030   pull_request  ci/wvp-core-build          2m37s   green
+#     run 34216586712   push          master (the merge)        43m39s   green
+#     run 34215769661   pull_request  ci/verify-w1-10-compiles   ~55m
 #
-#   So "cheap enough to leave on for every commit" above is a measurement rather
-#   than a hope: the expensive case is the first run against a cold cache, and the
-#   steady state is minutes. linux-build's cache key is unique per run with
-#   restore-keys walking back from the branch to progressively broader fallbacks,
-#   so a new branch inherits whatever built last instead of starting cold.
+#   An earlier version of this comment explained the fast runs by saying "a new
+#   branch inherits whatever built last instead of starting cold". That is WRONG,
+#   and the last two rows are what refute it: a merge to master and a brand-new
+#   branch both ran cold while a sibling branch had three warm caches sitting
+#   there.
 #
-#   The corollary worth remembering: a 35-minute run is NOT a hung run. Do not cut
-#   the timeout below it on the evidence of a warm one.
+#   The actual rule is that **GitHub Actions caches are ref-scoped**. A run can
+#   restore caches created on its own ref, on its base ref, or on the default
+#   branch — never on an unrelated sibling. Confirmed from the cache list: the
+#   three fast runs restored `refs/pull/4/merge` entries they had written
+#   themselves, and nothing else could read those.
+#
+#   So the shape is not "first run is slow, rest are fast". It is:
+#
+#     * the first run on ANY new ref pays full cost, unless the DEFAULT BRANCH
+#       has a cache it can inherit;
+#     * therefore the run that matters is the first one on master — once that
+#       exists, every subsequent PR starts warm off it.
+#
+#   That run has now happened (34216586712), so the expensive case is paid and
+#   ordinary PRs should be minutes. Expect a cold run again after any long gap,
+#   since caches are evicted after 7 days of no access.
+#
+#   Two corollaries worth keeping:
+#     * A 35-45 minute run is NOT a hung run. Do not cut timeout-minutes on the
+#       evidence of a warm one; the 120 ceiling is sized for the cold case.
+#     * Do not size a cost estimate from a run on a branch that had already built
+#       once. That is what produced the wrong claim above.
 name: wvp-core-build
 
 # The two `paths` lists are duplicated on purpose. GitHub Actions' workflow parser
