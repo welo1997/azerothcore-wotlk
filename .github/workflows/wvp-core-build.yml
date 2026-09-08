@@ -1,0 +1,138 @@
+# Added by the wow-vanilla-plus overlay, not by AzerothCore upstream.
+#
+# WHY THIS EXISTS
+#   Nothing in this project compiles a core C++ change automatically. Upstream's
+#   build workflows (core-build-pch.yml, core-build-nopch.yml, windows_build.yml,
+#   macos_build.yml, core_modules_build.yml) every one carry
+#
+#       if: github.repository == 'azerothcore/azerothcore-wotlk' && ...
+#
+#   so on this fork they report "skipping" and do nothing. That guard is upstream's
+#   and it is correct for upstream — it stops every fork on GitHub from burning
+#   their Actions budget. But it means that on THIS fork, which exists precisely to
+#   carry core C++ changes, the only automated checks a core commit ever faced were
+#   gitleaks and a tracked-filename check (wvp-secret-scan.yml). Neither compiles
+#   anything.
+#
+#   The overlay repository cannot cover the gap either: a core change lands here and
+#   the overlay only records the commit SHA, so its CI diffs a single "Subproject
+#   commit" line and has no C++ to build.
+#
+# WHAT THAT COST, CONCRETELY
+#   The project's pure-1.12 conversion is ~12 core C++ units deep (W1 alone), and
+#   until this workflow existed the FIRST compiler to see any of them was a
+#   developer's local `docker compose up -d --build`. That coupled compile
+#   verification to the one shared Docker stack — which is also the only place the
+#   bot suite can run, and which only one session can hold at a time. So "does it
+#   compile" and "does it behave" were serialized behind the same single resource,
+#   and a syntax error cost a full rebuild slot to discover.
+#
+#   The trade-off was recorded as accepted on the grounds that skipping the build
+#   "makes PR discipline on the fork cheap". That reasoning does not apply here:
+#   this fork is PUBLIC, and GitHub Actions minutes are free for public
+#   repositories. The cost being avoided was zero.
+#
+# WHY IT REUSES UPSTREAM'S OWN ACTION
+#   ./.github/actions/linux-build is what upstream's own build workflows call. It
+#   configures with -Werror and -DWITH_WARNINGS=ON, builds with ccache, installs,
+#   generates the .conf files, fetches dbc data, starts MySQL, and dry-runs BOTH
+#   authserver and worldserver. That last part matters: it catches a change that
+#   compiles but breaks startup, which is most of what a core revert can get wrong.
+#   Reusing it means this file stays short and cannot drift from how upstream
+#   actually builds. If upstream changes that action's inputs, this workflow breaks
+#   visibly on the next submodule merge rather than silently testing the wrong thing.
+#
+# WHY IT RUNS ON DRAFT PULL REQUESTS
+#   Deliberately no `!github.event.pull_request.draft` condition, which is the other
+#   half of upstream's guard. This project opens a core PR as a draft precisely
+#   BECAUSE it is unverified, and holds it there until it has been built and run. A
+#   build check that skips drafts would skip exactly the window where it is the only
+#   evidence available.
+#
+# WHY ONE CONFIGURATION AND NOT UPSTREAM'S MATRIX
+#   Upstream builds clang-18 + clang-21, pch + nopch, with and without modules, plus
+#   Windows and macOS. That is the right coverage for a project taking patches from
+#   strangers against every platform it ships. Here the question is narrower: did the
+#   core change we just wrote compile and start. One configuration answers that, and
+#   answering it in ~1 job rather than ~8 is what keeps this cheap enough to leave on
+#   for every commit. Widen the matrix if a portability bug ever actually escapes.
+#
+#   `modules: false` is not an oversight: the overlay's custom modules live in the
+#   OVERLAY repository, not here, so building "with modules" on this fork builds
+#   upstream's module set and tells us nothing about ours.
+#
+# WHAT IT ACTUALLY COSTS
+#   Measured on this workflow's own first two runs, not estimated:
+#
+#     run 34212419657   cold ccache, nothing to restore     34m57s   green
+#     run 34215702542   warm ccache, one-line workflow diff  4m42s   green
+#
+#   So "cheap enough to leave on for every commit" above is a measurement rather
+#   than a hope: the expensive case is the first run against a cold cache, and the
+#   steady state is minutes. linux-build's cache key is unique per run with
+#   restore-keys walking back from the branch to progressively broader fallbacks,
+#   so a new branch inherits whatever built last instead of starting cold.
+#
+#   The corollary worth remembering: a 35-minute run is NOT a hung run. Do not cut
+#   the timeout below it on the evidence of a warm one.
+name: wvp-core-build
+
+# The two `paths` lists are duplicated on purpose. GitHub Actions' workflow parser
+# does not support YAML anchors/aliases, so `paths: &x` / `paths: *x` does not
+# deduplicate them — it fails to parse. Keep the two lists in sync by hand.
+#
+# What is deliberately NOT in the list: data/sql/**. Upstream's routine
+# "chore(DB): import pending files" commits touch nothing the compiler sees, and
+# triggering a 30-minute build on each of them is how a cheap check becomes one
+# people turn off.
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'src/**'
+      - 'deps/**'
+      - 'modules/**'
+      - 'apps/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
+      - '.github/actions/linux-build/**'
+      - '.github/workflows/wvp-core-build.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'deps/**'
+      - 'modules/**'
+      - 'apps/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
+      - '.github/actions/linux-build/**'
+      - '.github/workflows/wvp-core-build.yml'
+  workflow_dispatch:
+
+concurrency:
+  # One group per workflow + ref, so a new push to a PR cancels the older build
+  # instead of queueing a second 30-minute job behind it. A master push and a PR
+  # never share a group: PRs are refs/pull/<N>/merge, master is refs/heads/master.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: core build + server dry-run (clang, pch)
+    runs-on: ubuntu-24.04
+    # A cold ccache builds the whole core from scratch. Generous ceiling so a slow
+    # run reports a result instead of being killed, but well under the 360m default
+    # so a hung build does not sit on a runner for six hours.
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/linux-build
+        with:
+          CC: clang-18
+          CXX: clang++-18
+          modules: false
+          pch: true
