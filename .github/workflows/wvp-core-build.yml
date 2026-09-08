@@ -113,7 +113,7 @@ jobs:
     # so a hung build does not sit on a runner for six hours.
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: ./.github/actions/linux-build
         with:
