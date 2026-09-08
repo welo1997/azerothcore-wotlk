@@ -2273,9 +2273,23 @@ uint32 Unit::CalcArmorReducedDamage(Unit const* attacker, Unit const* victim, co
     if (armor < 0.0f)
         armor = 0.0f;
 
+    // Vanilla-Plus W1-10: vanilla (1.12) armor mitigation.
+    //
+    // The expression below is already the vanilla shape, because
+    // 0.1 * armor / (8.5 * L + 40) == armor / (85 * L + 400), and combined with the
+    // tmpvalue / (1 + tmpvalue) step that is armor / (armor + K) with K = 400 + 85 * L.
+    // The only WotLK-ism was an inflation of the ATTACKER's level above 59,
+    //
+    //     if (levelModifier > 59)
+    //         levelModifier = levelModifier + (4.5f * (levelModifier - 59));
+    //
+    // which at level 60 gave L = 64.5 and so K = 5882.5 instead of the vanilla 5500.
+    // Removing it is the whole of W1-10; no other constant here changes.
+    //
+    // The victim-level inflation inside the armor-penetration cap above is a SEPARATE
+    // WotLK term and deliberately stays -- it belongs to W1-13 (armor-penetration
+    // rating), not to this unit.
     float levelModifier = attacker ? attacker->GetLevel() : attackerLevel;
-    if (levelModifier > 59)
-        levelModifier = levelModifier + (4.5f * (levelModifier - 59));
 
     float tmpvalue = 0.1f * armor / (8.5f * levelModifier + 40);
     tmpvalue = tmpvalue / (1.0f + tmpvalue);
