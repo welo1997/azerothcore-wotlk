@@ -60,6 +60,21 @@
 #   `modules: false` is not an oversight: the overlay's custom modules live in the
 #   OVERLAY repository, not here, so building "with modules" on this fork builds
 #   upstream's module set and tells us nothing about ours.
+#
+# WHAT IT ACTUALLY COSTS
+#   Measured on this workflow's own first two runs, not estimated:
+#
+#     run 34212419657   cold ccache, nothing to restore     34m57s   green
+#     run 34215702542   warm ccache, one-line workflow diff  4m42s   green
+#
+#   So "cheap enough to leave on for every commit" above is a measurement rather
+#   than a hope: the expensive case is the first run against a cold cache, and the
+#   steady state is minutes. linux-build's cache key is unique per run with
+#   restore-keys walking back from the branch to progressively broader fallbacks,
+#   so a new branch inherits whatever built last instead of starting cold.
+#
+#   The corollary worth remembering: a 35-minute run is NOT a hung run. Do not cut
+#   the timeout below it on the evidence of a warm one.
 name: wvp-core-build
 
 # The two `paths` lists are duplicated on purpose. GitHub Actions' workflow parser
