@@ -1086,15 +1086,6 @@ float AuraEffect::CalcPeriodicCritChance(Unit const* caster, Unit const* target)
                     break;
                 }
             }
-
-            switch (GetSpellInfo()->SpellFamilyName)
-            {
-                // Rupture - since 3.3.3 can crit
-                case SPELLFAMILY_ROGUE:
-                    if (GetSpellInfo()->SpellFamilyFlags[0] & 0x100000)
-                        critChance = modOwner->SpellDoneCritChance(nullptr, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), BASE_ATTACK, true);
-                    break;
-            }
         }
     }
     if (target && critChance > 0.0f)
