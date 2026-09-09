@@ -1483,7 +1483,15 @@ void SpellMgr::LoadSpellLearnSkills()
                     {
                         dbc_node.value = dbc_node.step * 75;
                     }
-                    dbc_node.maxvalue = dbc_node.step * 75;
+                    // Vanilla-Plus W7-01: vanilla (1.12) professions cap at Artisan (step 4 * 75 =
+                    // 300), not the WotLK Master/Grand Master steps (step 5/6 = 375/450). This is
+                    // the one site that computes a profession's trained skill ceiling -- every
+                    // rank-up purchase (Trainer::TeachSpell -> Player::learnSpell) reads it
+                    // straight from here, with no clamp downstream (Player::SetSkill writes
+                    // whatever maxvalue it is handed verbatim). SKILL_RIDING's own step tops out
+                    // at 4 (300) already, so this clamp cannot affect it; only profession skill
+                    // lines ever reach step 5/6.
+                    dbc_node.maxvalue = std::min<uint32>(dbc_node.step * 75, MAX_TRADE_SKILL_VALUE);
                     break;
                 case SPELL_EFFECT_DUAL_WIELD:
                     dbc_node.skill = SKILL_DUAL_WIELD;
