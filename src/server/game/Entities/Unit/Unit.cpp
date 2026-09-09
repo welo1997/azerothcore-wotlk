@@ -15447,13 +15447,16 @@ void Unit::KnockbackFrom(float x, float y, float speedXY, float speedZ)
 
 float Unit::GetCombatRatingReduction(CombatRating cr) const
 {
-    if (Player const* player = ToPlayer())
-        return player->GetRatingBonusValue(cr);
-    // Player's pet get resilience from owner
-    else if (IsPet() && GetOwner())
-        if (Player* owner = GetOwner()->ToPlayer())
-            return owner->GetRatingBonusValue(cr);
-
+    // W1-11: resilience (ITEM_MOD_RESILIENCE_RATING, item stat 35) grants only
+    // CR_CRIT_TAKEN_MELEE/RANGED/SPELL (Player.cpp's ITEM_MOD_RESILIENCE_RATING
+    // case), and this is the sole caller of GetRatingBonusValue for those three
+    // ratings across the codebase -- every crit-chance suppression, damage
+    // reduction and crit-damage reduction consumer below reads through here.
+    // Deleting the rating term leaves the rating itself intact (still granted,
+    // still displayed on the character sheet via Player::UpdateRating -- see
+    // the session note) and only removes its effect on combat, exactly as
+    // W1-10/W1-13 removed their own rating term at a single addend.
+    (void)cr;
     return 0.0f;
 }
 
