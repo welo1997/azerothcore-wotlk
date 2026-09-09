@@ -1579,6 +1579,10 @@ struct SkillRaceClassInfoEntry
 
 #define MAX_SKILL_STEP 16
 
+// Vanilla-Plus W7-01: professions cap at Artisan (300), not the WotLK Master/Grand
+// Master steps (375/450). See SpellMgr::LoadSpellLearnSkills.
+#define MAX_TRADE_SKILL_VALUE 300
+
 struct SkillLineEntry
 {
     uint32    id;                                           // 0        m_ID
