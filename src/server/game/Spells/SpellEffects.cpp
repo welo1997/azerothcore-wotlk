@@ -2806,7 +2806,23 @@ void Spell::EffectLearnSkill(SpellEffIndex effIndex)
 
     uint32 skillid = m_spellInfo->Effects[effIndex].MiscValue;
     uint16 skillval = unitTarget->ToPlayer()->GetPureSkillValue(skillid);
-    unitTarget->ToPlayer()->SetSkill(skillid, m_spellInfo->Effects[effIndex].CalcValue(), skillval ? skillval : 1, damage * 75);
+    // Vanilla-Plus W7-01: vanilla (1.12) trade skills cap at Artisan (rank 4 *
+    // 75 = 300), not the WotLK Master/Grand Master ranks (rank 5/6 = 375/450).
+    // This is the site every "Learn: <Rank> <Profession>" trainer spell
+    // actually resolves through: effect SPELL_EFFECT_SKILL_STEP (44), handled
+    // here when Trainer::TeachSpell -> Player::learnSpell -> Player::addSpell
+    // casts it. It is NOT SpellMgr::LoadSpellLearnSkills's SPELL_EFFECT_SKILL
+    // (118) case -- that lookup table exists (and is read by this same
+    // addSpell call) but no profession rank spell ever hits it. Measured by
+    // dumping every "<Rank> <Profession>" spell's Spell.dbc effect list
+    // (tools/dbcport) for two professions across all four trainer-taught
+    // ranks: effect[1] is uniformly type 44 with BasePoints 1..4 (giving
+    // damage 2..5, i.e. rank 2..5 -- Journeyman..Master), never type 118.
+    // Riding is the opposite case: its own spells (e.g. "Apprentice Riding")
+    // ARE type 118, so they route through LoadSpellLearnSkills instead of
+    // here -- and riding's own step already tops out at rank 4 (300), so no
+    // clamp is needed on that path either way.
+    unitTarget->ToPlayer()->SetSkill(skillid, m_spellInfo->Effects[effIndex].CalcValue(), skillval ? skillval : 1, std::min<int32>(damage * 75, MAX_TRADE_SKILL_VALUE));
 }
 
 void Spell::EffectAddHonor(SpellEffIndex /*effIndex*/)
