@@ -2234,7 +2234,8 @@ uint32 Unit::CalcArmorReducedDamage(Unit const* attacker, Unit const* victim, co
             if (aurEff->GetMiscValue() & SPELL_SCHOOL_MASK_NORMAL && aurEff->IsAffectedOnSpell(spellInfo))
                 armor = std::floor(AddPct(armor, -aurEff->GetAmount()));
 
-        // Apply Player CR_ARMOR_PENETRATION rating and buffs from stances\specializations etc.
+        // Apply Player armor-penetration buffs from stances/specializations etc.
+        // (the CR_ARMOR_PENETRATION rating itself no longer applies here -- W1-13 below)
         if (attacker->IsPlayer())
         {
             float bonusPct = 0;
@@ -2263,8 +2264,18 @@ uint32 Unit::CalcArmorReducedDamage(Unit const* attacker, Unit const* victim, co
 
             // Cap armor penetration to this number
             maxArmorPen = std::min((armor + maxArmorPen) / 3, armor);
-            // Figure out how much armor do we ignore
-            float armorPen = CalculatePct(maxArmorPen, bonusPct + attacker->ToPlayer()->GetRatingBonusValue(CR_ARMOR_PENETRATION));
+            // Vanilla-Plus W1-13: 1.12 has no armor-penetration RATING (item stat
+            // type 44 / combat rating CR_ARMOR_PENETRATION) -- that stat, and the
+            // rating->percent conversion Player::GetRatingBonusValue applies to it
+            // (Player.cpp: GetUInt32Value(PLAYER_FIELD_COMBAT_RATING_1 + cr) *
+            // GetRatingMultiplier(cr)), are both WotLK. Only bonusPct survives here:
+            // the flat percentage-penetration auras (SPELL_AURA_MOD_ARMOR_PENETRATION_PCT,
+            // e.g. every warrior's Battle Stance) gathered above, which are not the
+            // rating and are unaffected by this unit. The victim-level term in
+            // maxArmorPen above is the separate WotLK inflation W1-10 deliberately
+            // left for this unit -- it stays, since it caps the flat penetration too,
+            // not just the rating.
+            float armorPen = CalculatePct(maxArmorPen, bonusPct);
             // Got the value, apply it
             armor -= std::min(armorPen, maxArmorPen);
         }
