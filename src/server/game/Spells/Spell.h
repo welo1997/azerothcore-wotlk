@@ -645,15 +645,7 @@ public:
     bool m_autoRepeat;
     uint8 m_runesState;
 
-    uint8 m_delayAtDamageCount;
-    bool isDelayableNoMore()
-    {
-        if (m_delayAtDamageCount >= 2)
-            return true;
-
-        m_delayAtDamageCount++;
-        return false;
-    }
+    uint8 m_delayAtDamageCount;                         // Vanilla-Plus W2-04: drives the decaying 1.12 per-hit pushback schedule; no longer a two-hit cap.
 
     // Delayed spells system
     uint64 m_delayStart;                                // time of spell delay start, filled by event handler, zero = just started

@@ -7889,9 +7889,6 @@ void Spell::Delayed() // only called in DealDamage()
     //if (m_spellState == SPELL_STATE_DELAYED)
     //    return;                                             // spell is active and can't be time-backed
 
-    if (isDelayableNoMore())                                 // Spells may only be delayed twice
-        return;
-
     if (m_spellInfo->HasAttribute(SPELL_ATTR6_NO_PUSHBACK))
         return;
 
@@ -7899,8 +7896,10 @@ void Spell::Delayed() // only called in DealDamage()
     //if (!(m_spellInfo->InterruptFlags & SPELL_INTERRUPT_FLAG_DAMAGE))
     //    return;
 
-    //check pushback reduce
-    int32 delaytime = 500;                                  // spellcasting delay is normally 500ms
+    // Vanilla-Plus W2-04: 1.12 per-hit pushback decays 1000/800/600/400/200ms then floors at
+    // 200ms, uncapped in hit count (not WotLK's fixed 500ms capped at two hits per cast) --
+    // ported from VMaNGOS/cMaNGOS classic Spell::GetNextDelayAtDamageMsTime.
+    int32 delaytime = m_delayAtDamageCount < 5 ? 1000 - (m_delayAtDamageCount++) * 200 : 200;
     int32 delayReduce = 100;                                // must be initialized to 100 for percent modifiers
     m_caster->ToPlayer()->ApplySpellMod(m_spellInfo->Id, SPELLMOD_NOT_LOSE_CASTING_TIME, delayReduce, this);
     delayReduce += m_caster->GetTotalAuraModifier(SPELL_AURA_REDUCE_PUSHBACK) - 100;
@@ -7931,17 +7930,13 @@ void Spell::DelayedChannel()
     if (!m_caster || !m_caster->IsPlayer() || getState() != SPELL_STATE_CASTING)
         return;
 
-    if (isDelayableNoMore())                                    // Spells may only be delayed twice
-        return;
-
     if (m_spellInfo->HasAttribute(SPELL_ATTR6_NO_PUSHBACK))
         return;
 
-    //check pushback reduce
-    // should be affected by modifiers, not take the dbc duration.
-    int32 duration = ((m_channeledDuration > 0) ? m_channeledDuration : m_spellInfo->GetDuration());
-
-    int32 delaytime = CalculatePct(duration, 25); // channeling delay is normally 25% of its time per hit
+    // Vanilla-Plus W2-04: 1.12 channel pushback uses the same decaying per-hit ms schedule as a
+    // non-channeled cast (1000/800/600/400/200ms, uncapped), not WotLK's 25%-of-duration-per-hit
+    // rule -- ported from VMaNGOS/cMaNGOS classic Spell::GetNextDelayAtDamageMsTime.
+    int32 delaytime = m_delayAtDamageCount < 5 ? 1000 - (m_delayAtDamageCount++) * 200 : 200;
     int32 delayReduce = 100;                                    // must be initialized to 100 for percent modifiers
     m_caster->ToPlayer()->ApplySpellMod(m_spellInfo->Id, SPELLMOD_NOT_LOSE_CASTING_TIME, delayReduce, this);
     delayReduce += m_caster->GetTotalAuraModifier(SPELL_AURA_REDUCE_PUSHBACK) - 100;
