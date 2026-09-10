@@ -5320,6 +5320,24 @@ float Player::GetSpellCritFromIntellect()
 
 float Player::GetRatingMultiplier(CombatRating cr) const
 {
+    // W1-01: hit/crit/haste become flat vanilla percentages -- 1 "rating" = 1%,
+    // no level-scaled DBC divisor. Every other rating keeps the WotLK curve below.
+    switch (cr)
+    {
+        case CR_HIT_MELEE:
+        case CR_HIT_RANGED:
+        case CR_HIT_SPELL:
+        case CR_CRIT_MELEE:
+        case CR_CRIT_RANGED:
+        case CR_CRIT_SPELL:
+        case CR_HASTE_MELEE:
+        case CR_HASTE_RANGED:
+        case CR_HASTE_SPELL:
+            return 1.0f;
+        default:
+            break;
+    }
+
     uint8 level = GetLevel();
 
     if (level > GT_MAX_LEVEL)
