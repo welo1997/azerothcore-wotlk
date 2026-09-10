@@ -5223,7 +5223,8 @@ float Player::GetTotalBaseModValue(BaseModGroup modGroup) const
 
 uint32 Player::GetShieldBlockValue() const
 {
-    float value = (m_auraBaseFlatMod[SHIELD_BLOCK_VALUE] + GetStat(STAT_STRENGTH) * 0.5f - 10) * m_auraBasePctMod[SHIELD_BLOCK_VALUE];
+    // Vanilla-Plus W1-14: 1.12 coefficient STR/20 - 1 (not WotLK's STR*0.5 - 10), ported from VMaNGOS Player::GetShieldBlockValue.
+    float value = (m_auraBaseFlatMod[SHIELD_BLOCK_VALUE] + GetStat(STAT_STRENGTH) / 20 - 1) * m_auraBasePctMod[SHIELD_BLOCK_VALUE];
 
     value = (value < 0) ? 0 : value;
 
