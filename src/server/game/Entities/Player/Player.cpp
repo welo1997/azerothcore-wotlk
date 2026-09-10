@@ -3832,35 +3832,16 @@ void Player::_SaveSpellCooldowns(CharacterDatabaseTransaction trans, bool logout
 
 uint32 Player::resetTalentsCost() const
 {
-    // The first time reset costs 1 gold
+    // Vanilla-Plus (W3-06): the ladder is capped at 5 gold -- 1g first, 5g every
+    // time after -- below the stock core's native 10g third step, so the
+    // month-since-last-reset decay below (which only ever fires once
+    // m_resetTalentsCost reaches 10g, and floors at 10g) can no longer be
+    // reached; removed rather than left as dead code that implies a decay this
+    // ladder no longer has. m_resetTalentsCost never exceeds 5g under this
+    // ladder, so it also never falls below the 1g floor.
     if (m_resetTalentsCost < 1 * GOLD)
         return 1 * GOLD;
-    // then 5 gold
-    else if (m_resetTalentsCost < 5 * GOLD)
-        return 5 * GOLD;
-    // After that it increases in increments of 5 gold
-    else if (m_resetTalentsCost < 10 * GOLD)
-        return 10 * GOLD;
-    else
-    {
-        uint64 months = (GameTime::GetGameTime().count() - m_resetTalentsTime) / MONTH;
-        if (months > 0)
-        {
-            // This cost will be reduced by a rate of 5 gold per month
-            int32 new_cost = int32(m_resetTalentsCost - 5 * GOLD * months);
-            // to a minimum of 10 gold.
-            return (new_cost < 10 * GOLD ? 10 * GOLD : new_cost);
-        }
-        else
-        {
-            // After that it increases in increments of 5 gold
-            int32 new_cost = m_resetTalentsCost + 5 * GOLD;
-            // until it hits a cap of 50 gold.
-            if (new_cost > 50 * GOLD)
-                new_cost = 50 * GOLD;
-            return new_cost;
-        }
-    }
+    return 5 * GOLD;
 }
 
 bool Player::resetTalents(bool noResetCost)
