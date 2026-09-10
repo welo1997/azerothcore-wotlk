@@ -8938,6 +8938,12 @@ uint32 Unit::SpellDamageBonusDone(Unit* victim, SpellInfo const* spellProto, uin
         // No bonus damage for SPELL_DAMAGE_CLASS_NONE class spells by default
         if (spellProto->DmgClass == SPELL_DAMAGE_CLASS_NONE)
             return uint32(std::max((float(pdamage) + DoneTotal) * DoneTotalMod, 0.0f));
+
+        // W1-07: no spell_bonus_data row for this spell (after SpellMgr::GetSpellBonusData's
+        // own spell_chain fallback) -- fall back to the live 1.12 cast-time coefficient
+        // instead of the 3.3.5a DBC's stored EffectBonusMultiplier, which is otherwise 0 for
+        // most such spells and silently drops spell-power scaling entirely.
+        coeff = CalculateDefaultCoefficient(spellProto, damagetype);
     }
 
     // Default calculation
@@ -9686,6 +9692,13 @@ uint32 Unit::SpellHealingBonusDone(Unit* victim, SpellInfo const* spellProto, ui
         // No bonus healing for SPELL_DAMAGE_CLASS_NONE class spells by default
         if (spellProto->DmgClass == SPELL_DAMAGE_CLASS_NONE)
             return healamount;
+
+        // W1-07: no spell_bonus_data row for this spell (after SpellMgr::GetSpellBonusData's
+        // own spell_chain fallback) -- fall back to the live 1.12 cast-time coefficient
+        // instead of the 3.3.5a DBC's stored EffectBonusMultiplier. No 1.88 factor here: that
+        // belongs only to SpellHealingBonusTaken (1.12 had no such multiplier on the Done
+        // side), so it is deliberately not mirrored on this path.
+        coeff = CalculateDefaultCoefficient(spellProto, damagetype);
     }
 
     // Default calculation
