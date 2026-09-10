@@ -249,34 +249,30 @@ enum Gossips
 # formulas to calculate unlearning cost
 ###*/
 
-int32 DoLearnCost(Player* /*player*/)                      //tailor, alchemy
+// vanilla-plus W7-06: every profession specialization learn/unlearn costs one
+// flat, small fee -- 5g, every profession -- rather than the four different
+// stock formulas below (20g/150g/25-100g/5-10g by level). Collapsed to a
+// single constant so the fee lives in one place.
+constexpr int32 kSpecFeeCopper = 50000; // 5g
+
+int32 DoLearnCost(Player* /*player*/)                      //tailor, alchemy, engineering
 {
-    return 200000;
+    return kSpecFeeCopper;
 }
 
-int32 DoHighUnlearnCost(Player* /*player*/)                //tailor, alchemy
+int32 DoHighUnlearnCost(Player* /*player*/)                //tailor, alchemy, engineering
 {
-    return 1500000;
+    return kSpecFeeCopper;
 }
 
-int32 DoMedUnlearnCost(Player* player)                     //blacksmith, leatherwork
+int32 DoMedUnlearnCost(Player* /*player*/)                 //blacksmith weapon subspec, leatherwork
 {
-    uint8 level = player->GetLevel();
-    if (level < 51)
-        return 250000;
-    else if (level < 66)
-        return 500000;
-    else
-        return 1000000;
+    return kSpecFeeCopper;
 }
 
-int32 DoLowUnlearnCost(Player* player)                     //blacksmith
+int32 DoLowUnlearnCost(Player* /*player*/)                 //blacksmith
 {
-    uint8 level = player->GetLevel();
-    if (level < 66)
-        return 50000;
-    else
-        return 100000;
+    return kSpecFeeCopper;
 }
 
 bool EquippedOk(Player* player, uint32 spellId)
@@ -711,10 +707,10 @@ public:
                 break;
             //Learn Armor/Weapon
             case GOSSIP_ACTION_INFO_DEF + 1:
-                ProcessCastaction(player, creature, S_ARMOR, S_LEARN_ARMOR, 0);
+                ProcessCastaction(player, creature, S_ARMOR, S_LEARN_ARMOR, DoLearnCost(player));
                 break;
             case GOSSIP_ACTION_INFO_DEF + 2:
-                ProcessCastaction(player, creature, S_WEAPON, S_LEARN_WEAPON, 0);
+                ProcessCastaction(player, creature, S_WEAPON, S_LEARN_WEAPON, DoLearnCost(player));
                 break;
             //Unlearn Armor/Weapon
             case GOSSIP_ACTION_INFO_DEF + 3:
@@ -728,13 +724,13 @@ public:
                 break;
             //Learn Hammer/Axe/Sword
             case GOSSIP_ACTION_INFO_DEF + 5:
-                ProcessCastaction(player, creature, S_HAMMER, S_LEARN_HAMMER, 0);
+                ProcessCastaction(player, creature, S_HAMMER, S_LEARN_HAMMER, DoLearnCost(player));
                 break;
             case GOSSIP_ACTION_INFO_DEF + 6:
-                ProcessCastaction(player, creature, S_AXE, S_LEARN_AXE, 0);
+                ProcessCastaction(player, creature, S_AXE, S_LEARN_AXE, DoLearnCost(player));
                 break;
             case GOSSIP_ACTION_INFO_DEF + 7:
-                ProcessCastaction(player, creature, S_SWORD, S_LEARN_SWORD, 0);
+                ProcessCastaction(player, creature, S_SWORD, S_LEARN_SWORD, DoLearnCost(player));
                 break;
             //Unlearn Hammer/Axe/Sword
             case GOSSIP_ACTION_INFO_DEF + 8:
@@ -1177,15 +1173,15 @@ public:
                 break;
             //Learn Dragon
             case GOSSIP_ACTION_INFO_DEF + 5:
-                ProcessCastaction(player, nullptr, S_DRAGON, S_LEARN_DRAGON, 0);
+                ProcessCastaction(player, nullptr, S_DRAGON, S_LEARN_DRAGON, DoLearnCost(player));
                 break;
             //Learn Elemental
             case GOSSIP_ACTION_INFO_DEF + 6:
-                ProcessCastaction(player, nullptr, S_ELEMENTAL, S_LEARN_ELEMENTAL, 0);
+                ProcessCastaction(player, nullptr, S_ELEMENTAL, S_LEARN_ELEMENTAL, DoLearnCost(player));
                 break;
             //Learn Tribal
             case GOSSIP_ACTION_INFO_DEF + 7:
-                ProcessCastaction(player, nullptr, S_TRIBAL, S_LEARN_TRIBAL, 0);
+                ProcessCastaction(player, nullptr, S_TRIBAL, S_LEARN_TRIBAL, DoLearnCost(player));
                 break;
         }
     }
