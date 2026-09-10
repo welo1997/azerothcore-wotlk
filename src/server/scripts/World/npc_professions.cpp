@@ -249,30 +249,35 @@ enum Gossips
 # formulas to calculate unlearning cost
 ###*/
 
-// vanilla-plus W7-06: every profession specialization learn/unlearn costs one
-// flat, small fee -- 5g, every profession -- rather than the four different
-// stock formulas below (20g/150g/25-100g/5-10g by level). Collapsed to a
-// single constant so the fee lives in one place.
-constexpr int32 kSpecFeeCopper = 50000; // 5g
+// vanilla-plus W7-06 (owner correction, 2026-09-10 ~10:00): learning a
+// specialization is FREE, every profession -- stock 3.3.5a already learns
+// Blacksmithing/Leatherworking specs for free and 1.12 had them quest-gated
+// with no fee, so the 5g learn fee this unit originally shipped was the
+// driver's guess, not the design. Unlearning (re-picking) stays a flat 5g
+// (50000 copper) for every profession, replacing the four different stock
+// unlearn formulas below (150g/25-100g/5-10g by level). Two constants so the
+// two fees live in one place each and the asymmetry is visible at a glance.
+constexpr int32 kSpecLearnCopper = 0;        // every profession, every learn call site
+constexpr int32 kSpecUnlearnCopper = 50000;  // 5g, every profession, every unlearn call site
 
 int32 DoLearnCost(Player* /*player*/)                      //tailor, alchemy, engineering
 {
-    return kSpecFeeCopper;
+    return kSpecLearnCopper;
 }
 
 int32 DoHighUnlearnCost(Player* /*player*/)                //tailor, alchemy, engineering
 {
-    return kSpecFeeCopper;
+    return kSpecUnlearnCopper;
 }
 
 int32 DoMedUnlearnCost(Player* /*player*/)                 //blacksmith weapon subspec, leatherwork
 {
-    return kSpecFeeCopper;
+    return kSpecUnlearnCopper;
 }
 
 int32 DoLowUnlearnCost(Player* /*player*/)                 //blacksmith
 {
-    return kSpecFeeCopper;
+    return kSpecUnlearnCopper;
 }
 
 bool EquippedOk(Player* player, uint32 spellId)
