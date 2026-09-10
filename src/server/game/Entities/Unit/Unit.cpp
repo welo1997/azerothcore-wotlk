@@ -13566,9 +13566,22 @@ uint32 Unit::GetCastingTimeForBonus(SpellInfo const* spellProto, DamageEffectTyp
                         if (spellProto->GetDuration())
                             overTime = spellProto->GetDuration();
                         break;
-                    default:
-                        // -5% per additional effect
+                    // W1-07: 1.12 (vmangos/core@448df9ba, SpellEntry::GetCastTimeForBonus,
+                    // SpellEntry.cpp:557-569) only penalizes this specific, narrow set of
+                    // additional-effect aura types -- not every non-periodic APPLY_AURA
+                    // effect, which is what the pin's `default: ++effects;` did before this.
+                    case SPELL_AURA_DUMMY:
+                    case SPELL_AURA_MOD_DECREASE_SPEED:
+                        // -5% per effect
                         ++effects;
+                        break;
+                    case SPELL_AURA_MOD_CONFUSE:
+                    case SPELL_AURA_MOD_STUN:
+                    case SPELL_AURA_MOD_ROOT:
+                        // -10% per effect
+                        effects += 2;
+                        break;
+                    default:
                         break;
                 }
             default:
