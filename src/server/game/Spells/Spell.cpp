@@ -7717,8 +7717,17 @@ SpellCastResult Spell::CheckItems(uint32* param1, uint32* param2)
 
                     break;
                 }
+            // W5-12: every ranged-weapon direct-damage effect needs the same
+            // pre-cast ammo gate, not just the two WEAPON_DAMAGE variants --
+            // this mirrors HandleLaunchPhase's own usesAmmo effect set
+            // (Spell.cpp, TakeAmmo() call site) so a spell that already
+            // consumes ammo on cast (e.g. Arcane Shot, SPELL_EFFECT_SCHOOL_DAMAGE)
+            // is also refused up front when there is none.
+            case SPELL_EFFECT_SCHOOL_DAMAGE:
             case SPELL_EFFECT_WEAPON_DAMAGE:
             case SPELL_EFFECT_WEAPON_DAMAGE_NOSCHOOL:
+            case SPELL_EFFECT_NORMALIZED_WEAPON_DMG:
+            case SPELL_EFFECT_WEAPON_PERCENT_DAMAGE:
                 {
                     if (!m_caster->IsPlayer())
                         return SPELL_FAILED_TARGET_NOT_PLAYER;
