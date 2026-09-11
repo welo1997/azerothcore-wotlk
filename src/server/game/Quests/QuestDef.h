@@ -363,6 +363,7 @@ protected:
     int32  RewardArenaPoints;
     uint32 RewardNextQuest;
     uint32 RewardXPDifficulty;
+    uint32 VanillaPlusRewardXP; // Vanilla-Plus W6-02: per-quest 1.12 XP override; 0 = use RewardXPDifficulty (stock)
     uint32 StartItem;
     std::string Title;
     std::string Details;

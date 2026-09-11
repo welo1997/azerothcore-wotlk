@@ -121,6 +121,8 @@ Quest::Quest(Field* questRecord)
     // int8 Unknown0 = questRecord[100].Get<uint8>();
     // int32 VerifiedBuild = questRecord[105].Get<int32>();
 
+    VanillaPlusRewardXP = questRecord[104].Get<uint32>();
+
     for (int i = 0; i < QUEST_EMOTE_COUNT; ++i)
     {
         DetailsEmote[i] = 0;
@@ -198,6 +200,15 @@ void Quest::LoadQuestTemplateAddon(Field* fields)
 
 uint32 Quest::XPValue(uint8 playerLevel) const
 {
+    // Vanilla-Plus W6-02: a per-quest 1.12 XP override, set where no
+    // RewardXPDifficulty index lands within tolerance of the 1.12 value
+    // (sql/world/33_w6_02_quest_xp_1_12.sql). Still rides on Rate.XP.Quest -
+    // that multiplier is applied by every caller of XPValue(), not here.
+    if (VanillaPlusRewardXP > 0)
+    {
+        return VanillaPlusRewardXP;
+    }
+
     int32 quest_level = (Level == -1 ? playerLevel : Level);
     QuestXPEntry const* xpentry = sQuestXPStore.LookupEntry(quest_level);
     if (!xpentry)
