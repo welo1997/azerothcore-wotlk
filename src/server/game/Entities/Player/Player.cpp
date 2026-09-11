@@ -5357,17 +5357,15 @@ float Player::GetRatingBonusValue(CombatRating cr) const
     return float(GetUInt32Value(static_cast<uint16>(PLAYER_FIELD_COMBAT_RATING_1) + cr)) * GetRatingMultiplier(cr);
 }
 
-float Player::GetExpertiseDodgeOrParryReduction(WeaponAttackType attType) const
+float Player::GetExpertiseDodgeOrParryReduction(WeaponAttackType /*attType*/) const
 {
-    switch (attType)
-    {
-        case BASE_ATTACK:
-            return m_Expertise / 4.0f;
-        case OFF_ATTACK:
-            return m_OffhandExpertise / 4.0f;
-        default:
-            break;
-    }
+    // Vanilla-Plus W1-12: expertise never reduced the victim's dodge/parry chance
+    // in 1.12 -- weapon skill vs defense skill did that job (already live via
+    // W1-02). The rating and PLAYER_EXPERTISE/PLAYER_OFFHAND_EXPERTISE still exist
+    // (items still carry the rating, UpdateExpertise still populates the fields,
+    // the sheet still shows it) -- this is the single funnel point
+    // RollMeleeOutcomeAgainst and MeleeSpellHitResult (Unit.cpp) both call to turn
+    // it into a dodge/parry reduction, and it now contributes zero.
     return 0.0f;
 }
 
