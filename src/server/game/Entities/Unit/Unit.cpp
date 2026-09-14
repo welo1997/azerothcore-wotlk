@@ -3809,7 +3809,7 @@ uint32 Unit::GetDefenseSkillValue(Unit const* target) const
         uint32 value = (target && target->IsPlayer())
                        ? ToPlayer()->GetMaxSkillValue(SKILL_DEFENSE)
                        : ToPlayer()->GetSkillValue(SKILL_DEFENSE);
-        value += uint32(ToPlayer()->GetRatingBonusValue(CR_DEFENSE_SKILL));
+        // W1-03: CR_DEFENSE_SKILL rating no longer adds to the skill value -- defense is a skill, not a skill+rating hybrid
         return value;
     }
     else
