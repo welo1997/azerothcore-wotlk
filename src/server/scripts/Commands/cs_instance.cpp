@@ -237,12 +237,11 @@ public:
         std::unordered_map<uint32, char const*> encounterNames;
         Difficulty difficulty = map->GetDifficulty();
 
-        // For heroic ICC/Ruby Sanctum, encounters are only defined
-        // for normal difficulty in the DBC, use the same fallback
-        // pattern as Map::UpdateEncounterState
+        // For heroic shared-difficulty raids (ICC/Ruby Sanctum, and Vanilla-Plus's
+        // classic heroic raids), encounters are only defined for normal difficulty
+        // in the DBC, use the same fallback pattern as Map::UpdateEncounterState
         DungeonEncounterList const* encounters = nullptr;
-        if ((map->GetId() == 631 || map->GetId() == 724)
-            && map->IsHeroic())
+        if (IsSharedDifficultyMap(map->GetId()) && map->IsHeroic())
         {
             encounters = sObjectMgr->GetDungeonEncounterList(
                 map->GetId(),

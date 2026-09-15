@@ -828,7 +828,13 @@ uint32 const* GetTalentTabPages(uint8 cls)
 
 bool IsSharedDifficultyMap(uint32 mapid)
 {
-    return sWorld->getBoolConfig(CONFIG_INSTANCE_SHARED_ID) && (mapid == 631 || mapid == 724);
+    // 631: Icecrown Citadel, 724: Ruby Sanctum (retail ICC-style shared lockout)
+    // 249: Onyxia's Lair, 309: Zul'Gurub, 409: Molten Core, 469: Blackwing Lair,
+    // 509: Ahn'Qiraj Ruins, 531: Ahn'Qiraj Temple (Vanilla-Plus heroic raid modes,
+    // one lockout per raid, toggle per boss outside combat)
+    return sWorld->getBoolConfig(CONFIG_INSTANCE_SHARED_ID) &&
+        (mapid == 631 || mapid == 724 ||
+         mapid == 249 || mapid == 309 || mapid == 409 || mapid == 469 || mapid == 509 || mapid == 531);
 }
 
 uint32 GetLiquidFlags(uint32 liquidType)

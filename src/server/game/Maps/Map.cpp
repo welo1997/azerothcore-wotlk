@@ -2919,8 +2919,10 @@ void Map::UpdateEncounterState(EncounterCreditType type, uint32 creditEntry, Uni
 {
     Difficulty difficulty_fixed = (IsSharedDifficultyMap(GetId()) ? Difficulty(GetDifficulty() % 2) : GetDifficulty());
     DungeonEncounterList const* encounters;
-    // 631 : ICC - 724 : Ruby Sanctum --- For heroic difficulties, for some reason, we don't have an encounter list, so we get the encounter list from normal diff. We shouldn't change difficulty_fixed variable.
-    if ((GetId() == 631 || GetId() == 724) && IsHeroic())
+    // Shared-difficulty raids (ICC/Ruby Sanctum, and Vanilla-Plus's classic heroic raids) never got
+    // heroic-difficulty DungeonEncounter.dbc rows, so we fall back to the normal-diff encounter list
+    // for name lookups only. We shouldn't change difficulty_fixed variable.
+    if (IsSharedDifficultyMap(GetId()) && IsHeroic())
     {
         encounters = sObjectMgr->GetDungeonEncounterList(GetId(), !Is25ManRaid() ? RAID_DIFFICULTY_10MAN_NORMAL : RAID_DIFFICULTY_25MAN_NORMAL);
     }
