@@ -4787,6 +4787,52 @@ class spell_gen_remove_impairing_auras : public SpellScript
     }
 };
 
+// 26297 - Berserking (Troll racial)
+// Vanilla-Plus X19: 1.12 computed this racial's haste once at cast time from the caster's
+// missing health -- confirmed against cmangos-classic's SpellEffects.cpp EffectDummy handler
+// for spell ids 20554/26296/26297 (the three class-gated 1.12 ids for the same ability;
+// only 26297 survives into this fork's 3.3.5a Spell.dbc), piecewise: flat 30% at <=40%
+// health, 10 + (100 - health%) / 3 between 40% and 100% health, 10% at full health. The
+// owner's ask rescales the endpoints from 10-30% to 10-40% (RACES_CHANGES.txt); widening
+// only the "bonus above the 10% floor" term (divisor 3 -> 2) keeps the same 40%-health
+// breakpoint and the same linear shape, and lands exactly on both new endpoints. This
+// fork's spell 26297 already carries the single combined attack+cast haste effect (aura 193
+// SPELL_AURA_MELEE_SLOW / HandleModCombatSpeedPct, flat EffectBasePoints_1=19 -> 20% today)
+// that 1.12 computed via a hidden trigger spell -- no new effect slot needed, only its
+// computed amount, snapshotted once per cast to match 1.12's own "based on your health when
+// you use it" behaviour rather than recalculated for the buff's 10s duration.
+//
+// The formula above is cited as a description of OBSERVED 1.12 BEHAVIOUR, sourced from a
+// public emulator (cmangos-classic is GPL; this project is AGPL) -- not copied code. The
+// handler below is an original implementation against this codebase's own AuraScript/
+// CalculateAmount idiom, structurally unrelated to that emulator's EffectDummy/case-switch
+// architecture (different hook point, different control flow, this fork's own GetHealthPct()
+// accessor rather than a manual health/maxHealth division).
+class spell_troll_berserking : public AuraScript
+{
+    PrepareAuraScript(spell_troll_berserking);
+
+    void CalculateAmount(AuraEffect const* /*aurEff*/, int32& amount, bool& canBeRecalculated)
+    {
+        canBeRecalculated = false;
+
+        Unit* target = GetUnitOwner();
+        if (!target)
+            return;
+
+        uint32 healthPct = uint32(target->GetHealthPct());
+        if (healthPct <= 40)
+            amount = 40;
+        else
+            amount = 10 + int32(100 - healthPct) / 2;
+    }
+
+    void Register() override
+    {
+        DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_troll_berserking::CalculateAmount, EFFECT_0, SPELL_AURA_MELEE_SLOW);
+    }
+};
+
 enum AQSpells
 {
     SPELL_CONSUME_LEECH_AQ20      = 25373,
@@ -6348,6 +6394,7 @@ void AddSC_generic_spell_scripts()
     RegisterSpellScript(spell_gen_holiday_buff_food);
     RegisterSpellScript(spell_gen_arcane_charge);
     RegisterSpellScript(spell_gen_remove_impairing_auras);
+    RegisterSpellScript(spell_troll_berserking);
     RegisterSpellScriptWithArgs(spell_gen_consume, "spell_consume_aq20", SPELL_CONSUME_LEECH_AQ20, SPELL_CONSUME_LEECH_HEAL_AQ20);
     RegisterSpellScriptWithArgs(spell_gen_apply_aura_after_expiration, "spell_itch_aq20", SPELL_HIVEZARA_CATALYST, EFFECT_0, SPELL_AURA_DUMMY);
     RegisterSpellScriptWithArgs(spell_gen_apply_aura_after_expiration, "spell_itch_aq40", SPELL_VEKNISS_CATALYST, EFFECT_0, SPELL_AURA_DUMMY);
