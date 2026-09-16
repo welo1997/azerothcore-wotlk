@@ -104,7 +104,12 @@ enum PaladinSpells
     SPELL_PALADIN_SEAL_OF_VENGEANCE_EFFECT       = 42463,
     SPELL_PALADIN_SEAL_OF_CORRUPTION_EFFECT      = 53739,
 
-    SPELL_PALADIN_SEAL_OF_COMMAND                = 20375
+    SPELL_PALADIN_SEAL_OF_COMMAND                = 20375,
+
+    // T0.5 Paladin Healing (900102) 4pc set bonus -- core-C++ #25, 2026-09-16
+    // (docs/design/analysis/item-port-disposition-2026-09-16.md B.2, doc line 41)
+    SPELL_PALADIN_T05_HEAL_SHIELD_PROC           = 90654,
+    SPELL_PALADIN_T05_HEAL_SHIELD_ABSORB         = 90655
 };
 
 enum PaladinSpellIcons
@@ -1721,6 +1726,47 @@ class spell_pal_t8_2p_bonus : public AuraScript
     }
 };
 
+// 90654 - Item - T0.5 Paladin Healing 4P Bonus (set-bonuses-core #25). Clone
+// of spell_pri_divine_aegis (spell_priest.cpp -47509) with a new absorb id --
+// same "% of the triggering heal, absorbs stack, capped at level*125" shape,
+// the only real precedent in this fork for a proc-driven % of the OWN heal
+// (docs/design/analysis/item-port-disposition-2026-09-16.md B.2 #25).
+class spell_pal_t05_heal_shield : public AuraScript
+{
+    PrepareAuraScript(spell_pal_t05_heal_shield);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_PALADIN_T05_HEAL_SHIELD_ABSORB });
+    }
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        return eventInfo.GetProcTarget();
+    }
+
+    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    {
+        PreventDefaultAction();
+
+        int32 absorb = CalculatePct(int32(eventInfo.GetHealInfo()->GetHeal()), aurEff->GetAmount());
+
+        // Multiple effects stack, so let's try to find this aura.
+        if (AuraEffect const* shield = eventInfo.GetProcTarget()->GetAuraEffect(SPELL_PALADIN_T05_HEAL_SHIELD_ABSORB, EFFECT_0))
+            absorb += shield->GetAmount();
+
+        absorb = std::min(absorb, eventInfo.GetProcTarget()->GetLevel() * 125);
+
+        GetTarget()->CastCustomSpell(SPELL_PALADIN_T05_HEAL_SHIELD_ABSORB, SPELLVALUE_BASE_POINT0, absorb, eventInfo.GetProcTarget(), true, nullptr, aurEff);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(spell_pal_t05_heal_shield::CheckProc);
+        OnEffectProc += AuraEffectProcFn(spell_pal_t05_heal_shield::HandleProc, EFFECT_0, SPELL_AURA_DUMMY);
+    }
+};
+
 // -54939 - Glyph of Divinity
 class spell_pal_glyph_of_divinity : public AuraScript
 {
@@ -2314,6 +2360,7 @@ void AddSC_paladin_spell_scripts()
     RegisterSpellScript(spell_pal_spiritual_attunement);
     RegisterSpellScript(spell_pal_t3_6p_bonus);
     RegisterSpellScript(spell_pal_t8_2p_bonus);
+    RegisterSpellScript(spell_pal_t05_heal_shield);
     RegisterSpellScript(spell_pal_glyph_of_divinity);
     RegisterSpellScript(spell_pal_glyph_of_holy_light_dummy);
     RegisterSpellScript(spell_pal_heart_of_the_crusader);
