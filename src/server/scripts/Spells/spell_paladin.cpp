@@ -1742,7 +1742,27 @@ class spell_pal_t05_heal_shield : public AuraScript
 
     bool CheckProc(ProcEventInfo& eventInfo)
     {
-        return eventInfo.GetProcTarget();
+        // The HealInfo check is NOT redundant here, and is the one place this
+        // script must diverge from spell_pri_divine_aegis, which it is otherwise
+        // a verbatim clone of. Divine Aegis (47509) ships a hand-written
+        // `spell_proc` row that restricts it to the priest heal family on a crit,
+        // so its own unguarded GetHealInfo() is never reached without a heal.
+        // 90654 has no `spell_proc` row -- sql/world/85_ writes itemset_dbc,
+        // spell_dbc and spell_script_names only -- so SpellMgr::LoadSpellProcs
+        // GENERATES one from the DBC ProcFlags alone (SpellMgr.cpp, "Generate
+        // default procs for spells with proc flags but no explicit spell_proc
+        // entry"), with nothing but ProcTypeMask=16384 gating it.
+        //
+        // That mask is PROC_FLAG_DONE_SPELL_MAGIC_DMG_CLASS_POS, which
+        // Spell::DoAllEffectOnTarget sets for EVERY positive SPELL_DAMAGE_CLASS_MAGIC
+        // spell the wearer casts, not only heals. Its third branch ("Passive spell
+        // hits/misses or active spells only misses" -- a buff or shield that deals
+        // no damage and does no healing) calls Unit::ProcSkillsAndAuras with
+        // healInfo left nullptr, at PROC_SPELL_PHASE_HIT, which is exactly the
+        // phase the generated entry listens on. Without this guard that path
+        // dereferences a null HealInfo in HandleProc below and takes the
+        // worldserver down.
+        return eventInfo.GetProcTarget() && eventInfo.GetHealInfo();
     }
 
     void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
