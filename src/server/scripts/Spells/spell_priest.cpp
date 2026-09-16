@@ -375,7 +375,7 @@ class spell_pri_lightwell : public SpellScript
         // DEBUG instrumentation (builder-lightwell-charges, temporary): is this
         // reached at all -- i.e. did the outer, non-triggered click cast (spell
         // 60123, Unit::HandleSpellClick) pass CheckCast?
-        LOG_INFO("scripts", "lightwell-debug: spell_pri_lightwell::HandleScriptEffect reached");
+        LOG_ERROR("scripts", "lightwell-debug: spell_pri_lightwell::HandleScriptEffect reached");
 
         Creature* caster = GetCaster()->ToCreature();
         if (!caster || !caster->IsSummon())
@@ -395,13 +395,13 @@ class spell_pri_lightwell : public SpellScript
         // proc a spellcast
         if (Aura* chargesAura = caster->GetAura(SPELL_PRIEST_LIGHTWELL_CHARGES))
         {
-            LOG_INFO("scripts", "lightwell-debug: chargesAura found, charges={} before ModCharges(-1)", chargesAura->GetCharges());
+            LOG_ERROR("scripts", "lightwell-debug: chargesAura found, charges={} before ModCharges(-1)", chargesAura->GetCharges());
             caster->CastSpell(GetHitUnit(), lightwellRenew, caster->ToTempSummon()->GetSummonerGUID());
             if (chargesAura->ModCharges(-1))
                 caster->ToTempSummon()->UnSummon();
         }
         else
-            LOG_INFO("scripts", "lightwell-debug: chargesAura (59907) NOT found on caster -- guard no-op");
+            LOG_ERROR("scripts", "lightwell-debug: chargesAura (59907) NOT found on caster -- guard no-op");
     }
 
     void Register() override

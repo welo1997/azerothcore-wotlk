@@ -64,12 +64,15 @@ struct npc_pet_pri_lightwell : public TotemAI
 
         me->CastSpell(me, SPELL_PRIEST_LIGHTWELL_CHARGES, false); // Spell for Lightwell Charges
 
-        // DEBUG instrumentation (builder-lightwell-charges, temporary):
+        // DEBUG instrumentation (builder-lightwell-charges, temporary; LOG_ERROR
+        // because Logger.root's Console/Server appenders only pass WARN/ERROR+
+        // on this realm's worldserver.conf -- LOG_INFO never reaches a sink):
         // does the non-triggered self-cast above actually land the charges aura?
         if (Aura* debugChargesAura = me->GetAura(SPELL_PRIEST_LIGHTWELL_CHARGES))
-            LOG_INFO("scripts", "lightwell-debug: self-cast landed, charges={}", debugChargesAura->GetCharges());
+            LOG_ERROR("scripts", "lightwell-debug: self-cast landed, charges={}, owner-has-8pc={}",
+                debugChargesAura->GetCharges(), owner && owner->HasAura(SPELL_PRIEST_T05_LIGHTWELL_8PC));
         else
-            LOG_INFO("scripts", "lightwell-debug: self-cast of 59907 did NOT land (GetAura returned null)");
+            LOG_ERROR("scripts", "lightwell-debug: self-cast of 59907 did NOT land (GetAura returned null)");
 
         // T0.5 8pc: +4 usable charges when the summoner owns the set bonus.
         // Aura::ModCharges() only ever clamps a charge count UP to
