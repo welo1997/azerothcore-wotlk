@@ -21,6 +21,7 @@
  */
 
 #include "CreatureScript.h"
+#include "Log.h"
 #include "PetAI.h"
 #include "ScriptedCreature.h"
 #include "SpellAuras.h"
@@ -62,6 +63,13 @@ struct npc_pet_pri_lightwell : public TotemAI
         }
 
         me->CastSpell(me, SPELL_PRIEST_LIGHTWELL_CHARGES, false); // Spell for Lightwell Charges
+
+        // DEBUG instrumentation (builder-lightwell-charges, temporary):
+        // does the non-triggered self-cast above actually land the charges aura?
+        if (Aura* debugChargesAura = me->GetAura(SPELL_PRIEST_LIGHTWELL_CHARGES))
+            LOG_INFO("scripts", "lightwell-debug: self-cast landed, charges={}", debugChargesAura->GetCharges());
+        else
+            LOG_INFO("scripts", "lightwell-debug: self-cast of 59907 did NOT land (GetAura returned null)");
 
         // T0.5 8pc: +4 usable charges when the summoner owns the set bonus.
         // Aura::ModCharges() only ever clamps a charge count UP to

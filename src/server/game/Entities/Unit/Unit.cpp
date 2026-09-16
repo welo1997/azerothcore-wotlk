@@ -15645,9 +15645,18 @@ bool Unit::HandleSpellClick(Unit* clicker, int8 seatId)
         else
         {
             if (IsInMap(caster))
+            {
+                // DEBUG instrumentation (builder-lightwell-charges, temporary).
+                LOG_INFO("scripts", "spellclick-debug: casting spell {} caster={} target={} triggered={}",
+                    spellInfo->Id, caster->GetGUID().ToString(), target->GetGUID().ToString(),
+                    GetVehicleKit() != nullptr);
                 caster->CastSpell(target, spellInfo, GetVehicleKit() ? TRIGGERED_IGNORE_CASTER_MOUNTED_OR_ON_VEHICLE : TRIGGERED_NONE, nullptr, nullptr, origCasterGUID);
+            }
             else
+            {
+                LOG_INFO("scripts", "spellclick-debug: spell {} NOT cast -- caster not in map, using TryRefreshStackOrCreate instead", spellInfo->Id);
                 Aura::TryRefreshStackOrCreate(spellInfo, MAX_EFFECT_MASK, this, clicker, nullptr, nullptr, origCasterGUID);
+            }
         }
 
         result = true;

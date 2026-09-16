@@ -16,6 +16,7 @@
  */
 
 #include "GridNotifiers.h"
+#include "Log.h"
 #include "Player.h"
 #include "SpellAuraEffects.h"
 #include "SpellMgr.h"
@@ -371,6 +372,11 @@ class spell_pri_lightwell : public SpellScript
 
     void HandleScriptEffect(SpellEffIndex /* effIndex */)
     {
+        // DEBUG instrumentation (builder-lightwell-charges, temporary): is this
+        // reached at all -- i.e. did the outer, non-triggered click cast (spell
+        // 60123, Unit::HandleSpellClick) pass CheckCast?
+        LOG_INFO("scripts", "lightwell-debug: spell_pri_lightwell::HandleScriptEffect reached");
+
         Creature* caster = GetCaster()->ToCreature();
         if (!caster || !caster->IsSummon())
             return;
@@ -389,10 +395,13 @@ class spell_pri_lightwell : public SpellScript
         // proc a spellcast
         if (Aura* chargesAura = caster->GetAura(SPELL_PRIEST_LIGHTWELL_CHARGES))
         {
+            LOG_INFO("scripts", "lightwell-debug: chargesAura found, charges={} before ModCharges(-1)", chargesAura->GetCharges());
             caster->CastSpell(GetHitUnit(), lightwellRenew, caster->ToTempSummon()->GetSummonerGUID());
             if (chargesAura->ModCharges(-1))
                 caster->ToTempSummon()->UnSummon();
         }
+        else
+            LOG_INFO("scripts", "lightwell-debug: chargesAura (59907) NOT found on caster -- guard no-op");
     }
 
     void Register() override
