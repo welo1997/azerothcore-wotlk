@@ -15419,9 +15419,25 @@ void Player::_LoadTalents(PreparedQueryResult result)
             // xinef: checked
             uint32 spellId = (*result)[0].Get<uint32>();
             uint8 specMask = (*result)[1].Get<uint8>();
-            addTalent(spellId, specMask, 0);
+
+            // vanilla-plus: a talent-tree rewrite (e.g. sql/world/84_) can zero out or drop a rank
+            // this character saved under an older tree. Resolve the position before addTalent
+            // touches m_talents, and drop the row instead of crashing the whole realm on it.
             TalentSpellPos const* talentPos = GetTalentSpellPos(spellId);
-            ASSERT(talentPos);
+            if (!talentPos)
+            {
+                LOG_ERROR("entities.player.loading", "Player {} ({}) has talent spell {} (specMask {}) in `character_talent` "
+                    "that is not a talent rank in any tree. Dropping the row instead of asserting.",
+                    GetName(), GetGUID().ToString(), spellId, specMask);
+
+                CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_TALENT_BY_SPELL);
+                stmt->SetData(0, GetGUID().GetRawValue());
+                stmt->SetData(1, spellId);
+                CharacterDatabase.Execute(stmt);
+                continue;
+            }
+
+            addTalent(spellId, specMask, 0);
 
         } while (result->NextRow());
     }
