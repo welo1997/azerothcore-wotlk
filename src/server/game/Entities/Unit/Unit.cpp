@@ -15646,21 +15646,15 @@ bool Unit::HandleSpellClick(Unit* clicker, int8 seatId)
         {
             if (IsInMap(caster))
             {
-                // DEBUG instrumentation (builder-lightwell-charges, temporary;
-                // LOG_ERROR because this realm's Console/Server appenders only
-                // pass WARN/ERROR+ -- LOG_INFO never reaches a sink). Gated on
-                // spell 60123 (Lightwell) to avoid logging every spell-click on
-                // the realm.
-                if (spellInfo->Id == 60123)
-                    LOG_ERROR("scripts", "spellclick-debug: casting spell {} caster={} target={} triggered={}",
-                        spellInfo->Id, caster->GetGUID().ToString(), target->GetGUID().ToString(),
-                        GetVehicleKit() != nullptr);
+                // DEBUG instrumentation (builder-lightwell-charges, temporary).
+                LOG_INFO("scripts", "spellclick-debug: casting spell {} caster={} target={} triggered={}",
+                    spellInfo->Id, caster->GetGUID().ToString(), target->GetGUID().ToString(),
+                    GetVehicleKit() != nullptr);
                 caster->CastSpell(target, spellInfo, GetVehicleKit() ? TRIGGERED_IGNORE_CASTER_MOUNTED_OR_ON_VEHICLE : TRIGGERED_NONE, nullptr, nullptr, origCasterGUID);
             }
             else
             {
-                if (spellInfo->Id == 60123)
-                    LOG_ERROR("scripts", "spellclick-debug: spell {} NOT cast -- caster not in map, using TryRefreshStackOrCreate instead", spellInfo->Id);
+                LOG_INFO("scripts", "spellclick-debug: spell {} NOT cast -- caster not in map, using TryRefreshStackOrCreate instead", spellInfo->Id);
                 Aura::TryRefreshStackOrCreate(spellInfo, MAX_EFFECT_MASK, this, clicker, nullptr, nullptr, origCasterGUID);
             }
         }
