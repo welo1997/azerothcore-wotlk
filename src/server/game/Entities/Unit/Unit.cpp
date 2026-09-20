@@ -9279,15 +9279,26 @@ float Unit::SpellTakenCritChance(Unit const* caster, SpellInfo const* spellProto
                         int32 modChance = 0;
                         switch ((*i)->GetMiscValue())
                         {
-                            // Shatter
+                            // Shatter -- 1.12 progression is +10/20/30/40/50% crit vs
+                            // frozen for ranks 1-5 (849/910/911/912/913). This fork's
+                            // stock 3-rank chain gave 17/34/50 via an uneven 17/17/16
+                            // fallthrough; ranks 4-5 (912/913) are new for
+                            // wow-vanilla-plus 109_
+                            // (docs/sessions/2026-09-20-builder-talent-core-shatter-drainmana.md).
+                            case 913:
+                                modChance += 10;
+                                [[fallthrough]];
+                            case 912:
+                                modChance += 10;
+                                [[fallthrough]];
                             case 911:
-                                modChance += 16;
+                                modChance += 10;
                                 [[fallthrough]];
                             case 910:
-                                modChance += 17;
+                                modChance += 10;
                                 [[fallthrough]];
                             case 849:
-                                modChance += 17;
+                                modChance += 10;
                                 if (!HasAuraState(AURA_STATE_FROZEN, spellProto, caster))
                                     break;
                                 crit_chance += modChance;

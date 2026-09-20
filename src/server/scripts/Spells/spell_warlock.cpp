@@ -1795,9 +1795,74 @@ class spell_warl_nether_protection : public AuraScript
     }
 };
 
+// 5138, 6226, 11703, 11704 - Drain Mana
+//
+// wow-vanilla-plus 109_ (docs/sessions/2026-09-20-builder-talent-core-shatter-drainmana.md):
+// 1.12's Improved Drain Mana (talent ranks 17864/18393, aura 112
+// SPELL_AURA_OVERRIDE_CLASS_SCRIPTS misc 2028/2029) makes the drained
+// target also take shadow damage equal to 30%/60% of the mana drained.
+// No per-spell mechanism existed on this fork for aura 112 misc
+// 2028/2029 (grepped absent, same finding 102_/107_ already made) --
+// this is that mechanism, an AuraScript on Drain Mana's own periodic
+// mana-leech tick rather than a core-wide switch case, since the effect
+// is scoped to exactly one spell family's own periodic drain.
+class spell_warl_improved_drain_mana : public AuraScript
+{
+    PrepareAuraScript(spell_warl_improved_drain_mana);
+
+    // improvedDrainManaPct: aura-112 MiscValue -> percent of the mana
+    // drained this tick dealt as bonus shadow damage. Mirrors the
+    // scripted-crit switch's own shape (Unit.cpp, Shatter) -- a
+    // hardcoded MiscValue lookup, just scoped to this one AuraScript
+    // instead of a core-wide function, since no other spell needs it.
+    static int32 ImprovedDrainManaPct(Unit* caster)
+    {
+        for (AuraEffect* eff : caster->GetAuraEffectsByType(SPELL_AURA_OVERRIDE_CLASS_SCRIPTS))
+        {
+            switch (eff->GetMiscValue())
+            {
+                case 2028: return 30; // Improved Drain Mana rank 1
+                case 2029: return 60; // Improved Drain Mana rank 2
+                default: break;
+            }
+        }
+        return 0;
+    }
+
+    void HandleTick(AuraEffect const* aurEff)
+    {
+        Unit* caster = GetCaster();
+        Unit* target = GetTarget();
+        if (!caster || !target || caster == target)
+            return;
+
+        int32 pct = ImprovedDrainManaPct(caster);
+        if (pct <= 0)
+            return;
+
+        // aurEff->GetAmount() is this tick's own periodic mana-leech
+        // magnitude (the same value AuraEffect::HandlePeriodicManaLeechAuraTick
+        // drains, SpellAuraEffects.cpp:6718) -- the shadow bonus is a
+        // percentage of the drain itself, not a separately-computed value.
+        int32 drained = std::max<int32>(aurEff->GetAmount(), 0);
+        int32 dmg = CalculatePct(drained, pct);
+        if (dmg <= 0)
+            return;
+
+        caster->SendSpellNonMeleeDamageLog(target, GetSpellInfo(), uint32(dmg), SPELL_SCHOOL_MASK_SHADOW, 0, 0, false, 0, false);
+        Unit::DealDamage(caster, target, uint32(dmg), nullptr, SPELL_DIRECT_DAMAGE, SPELL_SCHOOL_MASK_SHADOW, GetSpellInfo(), false);
+    }
+
+    void Register() override
+    {
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_warl_improved_drain_mana::HandleTick, EFFECT_0, SPELL_AURA_PERIODIC_MANA_LEECH);
+    }
+};
+
 void AddSC_warlock_spell_scripts()
 {
     RegisterSpellScript(spell_warl_nether_protection);
+    RegisterSpellScript(spell_warl_improved_drain_mana);
     RegisterSpellScript(spell_warl_eye_of_kilrogg);
     RegisterSpellScript(spell_warl_shadowflame);
     RegisterSpellScript(spell_warl_seduction);
