@@ -1840,24 +1840,21 @@ class spell_warl_improved_drain_mana : public AuraScript
         if (pct <= 0)
             return;
 
-        // aurEff->GetAmount() is Drain Mana's own RAW per-tick field, not the
-        // absolute mana amount drained. OnEffectPeriodic (this hook) fires
-        // BEFORE AuraEffect::HandlePeriodicManaLeechAuraTick even runs
-        // (AuraEffect::PeriodicTick calls the script hook first,
+        // aurEff->GetAmount() is Drain Mana's own RAW per-tick percentage
+        // field, not the absolute mana amount drained. OnEffectPeriodic
+        // (this hook) fires BEFORE AuraEffect::HandlePeriodicManaLeechAuraTick
+        // even runs (AuraEffect::PeriodicTick calls the script hook first,
         // SpellAuraEffects.cpp:1122-1124, then dispatches to the type-
         // specific handler) -- and Drain Mana is a percent-of-target's-max-
-        // mana drain (m_spellInfo->ManaCostPercentage set), so
-        // HandlePeriodicManaLeechAuraTick's own "Special case: draining x%
-        // of mana" branch (SpellAuraEffects.cpp:~6720) converts GetAmount()'s
-        // raw percentage to an absolute value AFTER this hook already ran --
-        // reading GetAmount() directly here is the RAW PERCENT (e.g. low
-        // single digits), which CalculatePct(..., pct) below rounds to 0
-        // against Drain Mana's own small per-tick percentages. Found live
-        // (2026-09-20, wow-vanilla-plus vanillaplus/talent-core-shatter-
-        // drainmana builder session): mana-leech ticks fired correctly but
-        // the shadow bonus never appeared until this conversion was added --
-        // replicate the SAME percent->absolute conversion the core itself
-        // uses, rather than a separately-computed value.
+        // mana drain (m_spellInfo->ManaCostPercentage set, confirmed live:
+        // 17), so HandlePeriodicManaLeechAuraTick's own "Special case:
+        // draining x% of mana" branch (SpellAuraEffects.cpp:~6720) converts
+        // GetAmount()'s raw percentage (measured live: 3) to an absolute mana
+        // value AFTER this hook already ran. Found live (2026-09-20,
+        // wow-vanilla-plus vanillaplus/talent-core-shatter-drainmana builder
+        // session): without this conversion the bonus scaled off "3" as if
+        // it were mana, not 3% of the target's real mana pool -- replicate
+        // the SAME percent->absolute conversion the core itself uses.
         int32 drained = std::max<int32>(aurEff->GetAmount(), 0);
         if (GetSpellInfo()->ManaCostPercentage)
             drained = CalculatePct(target->GetMaxPower(Powers(aurEff->GetMiscValue())), drained);
@@ -1871,7 +1868,7 @@ class spell_warl_improved_drain_mana : public AuraScript
 
     void Register() override
     {
-        OnEffectPeriodic += AuraEffectPeriodicFn(spell_warl_improved_drain_mana::HandleTick, EFFECT_0, SPELL_AURA_PERIODIC_MANA_LEECH);
+        OnEffectPeriodic += AuraEffectPeriodicFn(spell_warl_improved_drain_mana::HandleTick, EFFECT_ALL, SPELL_AURA_PERIODIC_MANA_LEECH);
     }
 };
 
