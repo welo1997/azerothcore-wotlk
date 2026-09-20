@@ -1840,11 +1840,27 @@ class spell_warl_improved_drain_mana : public AuraScript
         if (pct <= 0)
             return;
 
-        // aurEff->GetAmount() is this tick's own periodic mana-leech
-        // magnitude (the same value AuraEffect::HandlePeriodicManaLeechAuraTick
-        // drains, SpellAuraEffects.cpp:6718) -- the shadow bonus is a
-        // percentage of the drain itself, not a separately-computed value.
+        // aurEff->GetAmount() is Drain Mana's own RAW per-tick field, not the
+        // absolute mana amount drained. OnEffectPeriodic (this hook) fires
+        // BEFORE AuraEffect::HandlePeriodicManaLeechAuraTick even runs
+        // (AuraEffect::PeriodicTick calls the script hook first,
+        // SpellAuraEffects.cpp:1122-1124, then dispatches to the type-
+        // specific handler) -- and Drain Mana is a percent-of-target's-max-
+        // mana drain (m_spellInfo->ManaCostPercentage set), so
+        // HandlePeriodicManaLeechAuraTick's own "Special case: draining x%
+        // of mana" branch (SpellAuraEffects.cpp:~6720) converts GetAmount()'s
+        // raw percentage to an absolute value AFTER this hook already ran --
+        // reading GetAmount() directly here is the RAW PERCENT (e.g. low
+        // single digits), which CalculatePct(..., pct) below rounds to 0
+        // against Drain Mana's own small per-tick percentages. Found live
+        // (2026-09-20, wow-vanilla-plus vanillaplus/talent-core-shatter-
+        // drainmana builder session): mana-leech ticks fired correctly but
+        // the shadow bonus never appeared until this conversion was added --
+        // replicate the SAME percent->absolute conversion the core itself
+        // uses, rather than a separately-computed value.
         int32 drained = std::max<int32>(aurEff->GetAmount(), 0);
+        if (GetSpellInfo()->ManaCostPercentage)
+            drained = CalculatePct(target->GetMaxPower(Powers(aurEff->GetMiscValue())), drained);
         int32 dmg = CalculatePct(drained, pct);
         if (dmg <= 0)
             return;
