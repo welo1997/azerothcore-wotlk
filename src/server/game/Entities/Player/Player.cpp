@@ -5334,6 +5334,14 @@ float Player::GetRatingMultiplier(CombatRating cr) const
         case CR_HASTE_RANGED:
         case CR_HASTE_SPELL:
             return 1.0f;
+        // W1-03: defense reverted from a rating to a skill -- 1 point of
+        // CR_DEFENSE_SKILL rating now acts exactly like 1 point of real
+        // Defense skill (GetDefenseSkillValue, Unit.cpp, already adds the two
+        // together), the same shape as W1-01 above and unit A's weapon-skill
+        // fix. Feeds dodge/parry/block/miss uniformly -- see
+        // docs/design/analysis/rating-families-remainder-2026-09-21.md section 2.
+        case CR_DEFENSE_SKILL:
+            return 1.0f;
         default:
             break;
     }
