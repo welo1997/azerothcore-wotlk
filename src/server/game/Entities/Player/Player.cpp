@@ -5322,6 +5322,9 @@ float Player::GetRatingMultiplier(CombatRating cr) const
 {
     // W1-01: hit/crit/haste become flat vanilla percentages -- 1 "rating" = 1%,
     // no level-scaled DBC divisor. Every other rating keeps the WotLK curve below.
+    // Weapon-skill core unit A: weapon-skill rating adds a skill-equivalent point
+    // directly into Unit::GetWeaponSkillValue's effective skill (already the right
+    // shape, 1.12-style) -- 1 rating = 1 skill point, same W1-01-shaped fix.
     switch (cr)
     {
         case CR_HIT_MELEE:
@@ -5333,6 +5336,10 @@ float Player::GetRatingMultiplier(CombatRating cr) const
         case CR_HASTE_MELEE:
         case CR_HASTE_RANGED:
         case CR_HASTE_SPELL:
+        case CR_WEAPON_SKILL:
+        case CR_WEAPON_SKILL_MAINHAND:
+        case CR_WEAPON_SKILL_OFFHAND:
+        case CR_WEAPON_SKILL_RANGED:
             return 1.0f;
         default:
             break;
