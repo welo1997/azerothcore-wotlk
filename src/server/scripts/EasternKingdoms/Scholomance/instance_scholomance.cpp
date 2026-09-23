@@ -229,17 +229,21 @@ public:
             data << _kirtonosState << ' ' << _miniBosses;
         }
 
-        // The 6 named minibosses are plain SmartAI, no ScriptName - this is the
-        // only hook that sees their death and feeds Gandling's engage gate.
+        // Only 3 of the 6 named minibosses (Malicia/Polkelt/Krastinov) already feed
+        // DATA_MINI_BOSSES on their own, via smart_scripts SET_INST_DATA(1,1) on
+        // SMART_EVENT_DEATH (world DB, confirmed live: entryorguid IN (10505,10901,
+        // 11261), event_type=6, action_type=34, action_param1/2=1). The other 3
+        // (Vectus/Ras Frostwhisper/Rattlegore) are plain SmartAI with no such action
+        // and no C++ ScriptName -- nothing ever counted their deaths, so the gate
+        // stalled at 3/6 forever. This hook must cover ONLY those 3, or the
+        // already-wired 3 double-count (once via smart_scripts, once here) and
+        // Gandling engages after 4-5 real kills instead of all 6.
         void OnUnitDeath(Unit* unit) override
         {
             switch (unit->GetEntry())
             {
                 case NPC_VECTUS:
-                case NPC_INSTRUCTOR_MALICIA:
                 case NPC_RAS_FROSTWHISPER:
-                case NPC_LOREKEEPER_POLKELT:
-                case NPC_DOCTOR_THEOLEN_KRASTINOV:
                 case NPC_RATTLEGORE:
                     if (_deadMiniBosses.insert(unit->GetEntry()).second)
                         SetData(DATA_MINI_BOSSES, IN_PROGRESS);
