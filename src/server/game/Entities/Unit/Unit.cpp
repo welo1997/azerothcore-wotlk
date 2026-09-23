@@ -15360,7 +15360,14 @@ float Unit::MeleeSpellMissChance(Unit const* victim, WeaponAttackType attType, i
     if (attType == RANGED_ATTACK)
         missChance -= m_modRangedHitChance;
     else
-        missChance -= m_modMeleeHitChance;
+    {
+        // Vanilla-Plus W1-04: 1.12 discards the first 1pp of +hit vs a defense-skill deficit > 10
+        // (docs/design/analysis/w1-04-hit-suppression-2026-09-23.md §1/§3). PvE only per §1's sourcing.
+        float effectiveHitChance = m_modMeleeHitChance;
+        if (diff > 10 && !victim->IsPlayer())
+            effectiveHitChance = std::max(0.0f, effectiveHitChance - 1.0f);
+        missChance -= effectiveHitChance;
+    }
 
     // Limit miss chance from 0 to 60%
     if (missChance < 0.0f)
