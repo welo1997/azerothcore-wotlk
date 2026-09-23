@@ -1937,14 +1937,19 @@ void Player::Regenerate(Powers power)
             }
             break;
         case POWER_ENERGY:                                  // Regenerate energy (rogue)
-            // Regen per second
-            addvalue += (GetFloatValue(UNIT_FIELD_POWER_REGEN_FLAT_MODIFIER + AsUnderlyingType(POWER_ENERGY)) + 10.f);
-            // Regen per millisecond
-            addvalue *= 0.001f;
-            // Milliseconds passed
-            addvalue *= m_regenTimer;
-            // Rate
-            addvalue *= sWorld->getRate(RATE_POWER_ENERGY);
+            // 1.12: energy regenerates in a discrete 20-point step on a fixed
+            // 2s clock, not a per-tick creep -- gate it on the same
+            // m_regenTimerCount boundary the rage/runic-power cases use, and
+            // add the full per-tick amount at once instead of scaling by the
+            // (sub-second) elapsed ms since the last call.
+            if (m_regenTimerCount >= 2000)
+            {
+                addvalue += (GetFloatValue(UNIT_FIELD_POWER_REGEN_FLAT_MODIFIER + AsUnderlyingType(POWER_ENERGY)) + 10.f);
+                // 20 energy per fixed 2-second tick
+                addvalue *= 2.0f;
+                // Rate
+                addvalue *= sWorld->getRate(RATE_POWER_ENERGY);
+            }
             break;
         case POWER_RUNIC_POWER:
             {
