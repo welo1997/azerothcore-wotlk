@@ -44,7 +44,15 @@ enum CreatureIds
 {
     NPC_RISEN_GUARDIAN          = 11598,
     NPC_DARKMASTER_GANDLING     = 1853,
-    NPC_KIRTONOS                = 10506
+    NPC_KIRTONOS                = 10506,
+
+    // The 6 miniboss gate DATA_MINI_BOSSES counts before Gandling engages
+    NPC_VECTUS                  = 10432,
+    NPC_INSTRUCTOR_MALICIA      = 10505,
+    NPC_RAS_FROSTWHISPER        = 10508,
+    NPC_LOREKEEPER_POLKELT      = 10901,
+    NPC_DOCTOR_THEOLEN_KRASTINOV = 11261,
+    NPC_RATTLEGORE              = 11622
 };
 
 enum GameobjectIds

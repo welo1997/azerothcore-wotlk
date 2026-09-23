@@ -26,6 +26,8 @@
 #include "SpellScriptLoader.h"
 #include "scholomance.h"
 
+#include <unordered_set>
+
 Position KirtonosSpawn = Position(315.028, 70.5385, 102.15, 0.385971);
 
 class instance_scholomance : public InstanceMapScript
@@ -227,6 +229,24 @@ public:
             data << _kirtonosState << ' ' << _miniBosses;
         }
 
+        // The 6 named minibosses are plain SmartAI, no ScriptName - this is the
+        // only hook that sees their death and feeds Gandling's engage gate.
+        void OnUnitDeath(Unit* unit) override
+        {
+            switch (unit->GetEntry())
+            {
+                case NPC_VECTUS:
+                case NPC_INSTRUCTOR_MALICIA:
+                case NPC_RAS_FROSTWHISPER:
+                case NPC_LOREKEEPER_POLKELT:
+                case NPC_DOCTOR_THEOLEN_KRASTINOV:
+                case NPC_RATTLEGORE:
+                    if (_deadMiniBosses.insert(unit->GetEntry()).second)
+                        SetData(DATA_MINI_BOSSES, IN_PROGRESS);
+                    break;
+            }
+        }
+
     protected:
         ObjectGuid GateKirtonosGUID;
         ObjectGuid GateMiliciaGUID;
@@ -243,6 +263,7 @@ public:
         uint32 _kirtonosState;
         uint32 _miniBosses;
         uint32 _rasHuman;
+        std::unordered_set<uint32> _deadMiniBosses;
     };
 };
 
