@@ -2048,7 +2048,11 @@ void Player::RegenerateHealth()
 
         if (!IsStandState())
         {
-            addvalue *= 1.33f;
+            // W1-19: 1.12 sourcing (vmangos/core + cmangos/mangos-classic, both identical) gives
+            // *1.5f (a 50% sit bonus), not the 33% this analysis doc's earlier single-family web
+            // citation assumed and this fork previously matched - corrected here, flagged as a
+            // disagreement with that earlier citation, see the "Landing" section.
+            addvalue *= 1.5f;
         }
 
         addvalue *= GetTotalAuraMultiplier(SPELL_AURA_MOD_HEALTH_REGEN_PERCENT);
@@ -2059,13 +2063,19 @@ void Player::RegenerateHealth()
         }
         else if (HasRegenDuringCombatAura())
         {
+            // W1-19: kept, not removed - both vmangos and cmangos-classic (1.12 reimplementations)
+            // carry this exact SPELL_AURA_MOD_REGEN_DURING_COMBAT gate in their own RegenerateHealth,
+            // so it is 1.12-authentic, not the WotLK-only mechanic the analysis doc's web-search-only
+            // default assumed. Correction logged in the "Landing" section.
             ApplyPct(addvalue, GetTotalAuraModifier(SPELL_AURA_MOD_REGEN_DURING_COMBAT));
         }
     }
 
-    // always regeneration bonus (including combat)
+    // W1-19: SPELL_AURA_MOD_HEALTH_REGEN_IN_COMBAT kept - both 1.12 sources apply it unconditionally
+    // too (same as here), so it is not a WotLK-only escape hatch (correction, see "Landing").
+    // m_baseHealthRegen/2.5f removed - neither 1.12 source has an equivalent unconditional
+    // item-base-stat regen term; no 1.12 citation supports it.
     addvalue += GetTotalAuraModifier(SPELL_AURA_MOD_HEALTH_REGEN_IN_COMBAT);
-    addvalue += m_baseHealthRegen / 2.5f;
 
     if (addvalue < 0)
         addvalue = 0;
@@ -5384,46 +5394,61 @@ float Player::GetExpertiseDodgeOrParryReduction(WeaponAttackType /*attType*/) co
     return 0.0f;
 }
 
+// W1-19: 1.12's client ships no gtOCTRegenHP/gtRegenHPPerSpt/gtRegenMPPerSpt/gtOCTRegenMP DBCs at
+// all (tools/dbcport/reports/regen-tables-112-vs-335.md) - the WotLK gt-table level/class lookup
+// below is a 3.3.5a-only mechanism, not a 1.12 one. 1.12's real regen is a flat, level-independent
+// Spirit formula per class, cited identically (byte-identical coefficients) from two independent
+// 1.12 server reimplementations: vmangos/core Unit::GetRegenHPPerSpirit/GetRegenMPPerSpirit
+// (src/game/Objects/Unit.cpp, pinned 4b350a09fca8b5797975e343ae6300fbb5f9937b) and
+// cmangos/mangos-classic Unit::OCTRegenHPPerSpirit/OCTRegenMPPerSpirit
+// (src/game/Entities/Unit.cpp, pinned 8ec338a1704e7dcb1c0213eb7ed58f9231ade40f) - see docs/tooling.md
+// and docs/design/analysis/vanilla-hp-mana-regen-2026-09-23.md "Landing" for the full sourcing.
+// No disagreement between the two sources on these coefficients - both agree exactly.
 float Player::OCTRegenHPPerSpirit()
 {
-    uint8 level = GetLevel();
-    uint32 pclass = getClass();
-
-    if (level > GT_MAX_LEVEL)
-        level = GT_MAX_LEVEL;
-
-    GtOCTRegenHPEntry     const* baseRatio = sGtOCTRegenHPStore.LookupEntry((pclass - 1) * GT_MAX_LEVEL + level - 1);
-    GtRegenHPPerSptEntry  const* moreRatio = sGtRegenHPPerSptStore.LookupEntry((pclass - 1) * GT_MAX_LEVEL + level - 1);
-    if (!baseRatio || !moreRatio)
-        return 0.0f;
-
-    // Formula from PaperDollFrame script
     float spirit = GetStat(STAT_SPIRIT);
-    float baseSpirit = spirit;
-    if (baseSpirit > 50)
-        baseSpirit = 50;
-    float moreSpirit = spirit - baseSpirit;
-    float regen = (baseSpirit * baseRatio->ratio + moreSpirit * moreRatio->ratio) * 2;
-    return regen;
+    float regen = 0.0f;
+
+    switch (getClass())
+    {
+        case CLASS_DRUID:   regen = (spirit * 0.11f + 1.0f);    break;
+        case CLASS_HUNTER:  regen = (spirit * 0.43f - 5.5f);    break;
+        case CLASS_MAGE:    regen = (spirit * 0.11f + 1.0f);    break;
+        case CLASS_PALADIN: regen = (spirit * 0.25f);           break;
+        case CLASS_PRIEST:  regen = (spirit * 0.15f + 1.4f);    break;
+        case CLASS_ROGUE:   regen = (spirit * 0.84f - 13.0f);   break;
+        case CLASS_SHAMAN:  regen = (spirit * 0.28f - 3.6f);    break;
+        case CLASS_WARLOCK: regen = (spirit * 0.12f + 1.5f);    break;
+        case CLASS_WARRIOR: regen = (spirit * 1.26f - 22.6f);   break;
+        // Death Knight (class 6) does not exist in 1.12; neither source cites a value - 0, not guessed.
+        default: regen = 0.0f; break;
+    }
+
+    return std::max(0.0f, regen);
 }
 
 float Player::OCTRegenMPPerSpirit()
 {
-    uint8 level = GetLevel();
-    uint32 pclass = getClass();
+    float spirit = GetStat(STAT_SPIRIT);
+    float addvalue = 0.0f;
 
-    if (level > GT_MAX_LEVEL)
-        level = GT_MAX_LEVEL;
+    switch (getClass())
+    {
+        case CLASS_DRUID:   addvalue = (spirit / 5.0f + 15.0f);   break;
+        case CLASS_HUNTER:  addvalue = (spirit / 5.0f + 15.0f);   break;
+        case CLASS_MAGE:    addvalue = (spirit / 4.0f + 12.5f);   break;
+        case CLASS_PALADIN: addvalue = (spirit / 5.0f + 15.0f);   break;
+        case CLASS_PRIEST:  addvalue = (spirit / 4.0f + 12.5f);   break;
+        case CLASS_SHAMAN:  addvalue = (spirit / 5.0f + 17.0f);   break;
+        case CLASS_WARLOCK: addvalue = (spirit / 5.0f + 15.0f);   break;
+        // Warrior/Rogue/Death Knight do not use mana in 1.12 - 0.
+        default: addvalue = 0.0f; break;
+    }
 
-    //    GtOCTRegenMPEntry     const* baseRatio = sGtOCTRegenMPStore.LookupEntry((pclass-1)*GT_MAX_LEVEL + level-1);
-    GtRegenMPPerSptEntry  const* moreRatio = sGtRegenMPPerSptStore.LookupEntry((pclass - 1) * GT_MAX_LEVEL + level - 1);
-    if (!moreRatio)
-        return 0.0f;
-
-    // Formula get from PaperDollFrame script
-    float spirit    = GetStat(STAT_SPIRIT);
-    float regen     = spirit * moreRatio->ratio;
-    return regen;
+    // Both sources compute this per a longer reference tick and divide by 2 to land on their own
+    // 2000ms regen cadence, which matches this fork's own m_regenTimerCount >= 2000 (already-cited
+    // 1.12 tick length, analysis doc §1/§3) - kept for the same reason.
+    return addvalue / 2.0f;
 }
 
 void Player::ApplyRatingMod(CombatRating cr, int32 value, bool apply)

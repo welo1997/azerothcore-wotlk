@@ -901,9 +901,12 @@ void Player::UpdateManaRegen()
         return;
     }
 
-    float Intellect = GetStat(STAT_INTELLECT);
-    // Mana regen from spirit and intellect
-    float power_regen = std::sqrt(Intellect) * OCTRegenMPPerSpirit();
+    // W1-19: sqrt(Intellect) scaling is WotLK's own mana-regen mechanic - neither vmangos/core nor
+    // cmangos/mangos-classic apply an Intellect term to Player mana regen (both computed from Spirit
+    // alone, see OCTRegenMPPerSpirit()); dropped here to match 1.12, cited in the same place as the
+    // formula itself (Player.cpp OCTRegenMPPerSpirit).
+    // Mana regen from spirit
+    float power_regen = OCTRegenMPPerSpirit();
     // Apply PCT bonus from SPELL_AURA_MOD_POWER_REGEN_PERCENT aura on spirit base regen
     power_regen *= GetTotalAuraMultiplierByMiscValue(SPELL_AURA_MOD_POWER_REGEN_PERCENT, POWER_MANA);
 
