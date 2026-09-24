@@ -19,7 +19,6 @@
 #include "Log.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
-#include "ScriptedGossip.h"
 #include "SpellScript.h"
 #include "SpellScriptLoader.h"
 #include "TaskScheduler.h"
@@ -169,14 +168,6 @@ public:
             });
         }
     };
-
-    bool OnGossipSelect(Player* player, Creature* creature, uint32 /*sender*/, uint32 /*action*/) override
-    {
-        CloseGossipMenuFor(player);
-        creature->SetFaction(FACTION_ENEMY);
-        creature->AI()->AttackStart(player);
-        return true;
-    }
 
     CreatureAI* GetAI(Creature* creature) const override
     {
