@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "GameObjectScript.h"
 #include "InstanceMapScript.h"
 #include "InstanceScript.h"
 #include "ObjectMgr.h"
@@ -290,17 +291,44 @@ struct instance_molten_core : public InstanceScript
                 _circlesGUIDs[bossId].Clear();
             }
 
-            if (GameObject* rune = instance->GetGameObject(_runesGUIDs[bossId]))
-            {
-                rune->UseDoorOrButton(WEEK * IN_MILLISECONDS);
-                _runesGUIDs[bossId].Clear();
-            }
-
-            if (CheckMajordomoExecutus())
-                SummonMajordomoExecutus();
+            // 1.12: the rune lights (becomes usable) once its boss is dead, but
+            // dousing it is a manual player action (GO_FLAG_LOCKED clear only) --
+            // it does not open itself, and Majordomo does not spawn here. See
+            // UseRune() below, which is the only path that opens a rune and the
+            // only path that can spawn Majordomo from the 7-douse count.
         }
 
         return true;
+    }
+
+    // Called from go_molten_core_rune::OnGossipHello (rune GOs carry that
+    // ScriptName, sql/world/366_encounters_core_2.sql). Returns true if the
+    // rune was doused (opened) by this use, false if it was rejected because
+    // its boss is not yet dead (1.12 mechanic: dousing an undoused rune whose
+    // boss lives does not progress the encounter).
+    bool UseRune(GameObject* rune)
+    {
+        for (uint8 i = 0; i < MAX_MC_LINKED_BOSS_OBJ; ++i)
+        {
+            if (linkedBossObjData[i].runeId != rune->GetEntry())
+                continue;
+
+            if (GetBossState(linkedBossObjData[i].bossId) != DONE)
+                return false;
+
+            if (!(_dousedRuneMask & (1 << i)))
+            {
+                _dousedRuneMask |= (1 << i);
+                rune->UseDoorOrButton(WEEK * IN_MILLISECONDS);
+
+                if (_dousedRuneMask == ((1 << MAX_MC_LINKED_BOSS_OBJ) - 1) && CheckMajordomoExecutus())
+                    SummonMajordomoExecutus();
+            }
+
+            return true;
+        }
+
+        return false;
     }
 
     void DoAction(int32 action) override
@@ -375,9 +403,30 @@ private:
     ObjectGuid _cacheOfTheFirelordGUID;
     ObjectGuid _garrGUID;
     ObjectGuid _magmadarGUID;
+
+    // Bit i set once linkedBossObjData[i]'s rune has been manually doused.
+    uint8 _dousedRuneMask = 0;
+};
+
+class go_molten_core_rune : public GameObjectScript
+{
+public:
+    go_molten_core_rune() : GameObjectScript("go_molten_core_rune") { }
+
+    bool OnGossipHello(Player* /*player*/, GameObject* go) override
+    {
+        if (InstanceScript* instance = go->GetInstanceScript())
+            if (auto* mc = dynamic_cast<instance_molten_core*>(instance))
+                mc->UseRune(go);
+
+        // Always consume the click: opening (or not) is handled inside
+        // UseRune() so a rejected douse produces no visual/state change.
+        return true;
+    }
 };
 
 void AddSC_instance_molten_core()
 {
     RegisterInstanceScript(instance_molten_core, MAP_MOLTEN_CORE);
+    new go_molten_core_rune();
 }
