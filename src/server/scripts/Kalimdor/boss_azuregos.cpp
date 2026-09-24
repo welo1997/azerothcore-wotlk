@@ -16,7 +16,6 @@
  */
 
 #include "CreatureScript.h"
-#include "Log.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
 #include "SpellScript.h"
@@ -57,19 +56,6 @@ public:
 
         void Reset() override
         {
-            // Diagnostic only (encounters-remaining-2026-09-23.md §1): confirmed live that
-            // JustEngagedWith runs (23184 lands) but none of the six kit spells ever cast
-            // during 45s of sustained combat. Two live hypotheses -- (a) IsEngaged() reads
-            // false for this instance despite melee registering, so UpdateAI's
-            // `if (!UpdateVictim()) return;` skips scheduler.Update every tick without ever
-            // re-entering JustEngagedWith to explain it; (b) Reset() re-fires mid-combat
-            // (an evade loop) and CancelAll()s the scheduler before any >=7s-delayed cast
-            // lands. This line distinguishes them: if the fix is (b), this line prints
-            // repeatedly during a single sustained-combat window; if it prints once (or
-            // zero times after the initial aggro), suspect (a) instead.
-            LOG_ERROR("scripts.ai", "boss_azuregos: Reset() on {} (inCombat={}, engaged={})",
-                me->GetGUID().ToString(), me->IsInCombat(), me->IsEngaged());
-
             scheduler.CancelAll();
             me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
             me->RestoreFaction();
@@ -154,11 +140,17 @@ public:
         {
             if (!UpdateVictim())
             {
-                // Diagnostic only (see Reset()): if this fires repeatedly while melee is
-                // landing on me, hypothesis (a) -- IsEngaged() false -- is confirmed.
+                // Diagnosed live (encounters-remaining-2026-09-23.md, docs/sessions/
+                // 2026-09-24-builder-azuregos-engage.md): worldserver log confirmed
+                // IsInCombat()=true, IsEngaged()=false, sustained -- a core
+                // CombatManager/ThreatManager desync (combat set via a path that
+                // bypasses AddThreat's engagement notify), never seen in 1.12
+                // (cmangos-classic has no separate "engaged" state at all -- combat
+                // implies full AI). Self-heal here rather than soft-locking the
+                // scheduler for the rest of the fight.
                 if (me->IsInCombat())
-                    LOG_ERROR("scripts.ai", "boss_azuregos: UpdateVictim() false on {} while IsInCombat, engaged={}",
-                        me->GetGUID().ToString(), me->IsEngaged());
+                    if (Unit* target = me->GetCombatManager().GetAnyTarget())
+                        me->EngageWithTarget(target);
                 return;
             }
 
