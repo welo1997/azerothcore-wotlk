@@ -103,13 +103,27 @@ enum AdditionalData
     AREATRIGGER_DRAGONSPIRE_HALL    = 2046,
     AREATRIGGER_BLACKROCK_STADIUM   = 2026,
     SAY_FINKLE_GANG                 = 0,
-    ITEM_UNADORNED_SEAL             = 12219
+    ITEM_UNADORNED_SEAL             = 12219,
+    // Seal of Ascension (finished seal) -- gates the Dragonspine Door at the
+    // top of the entrance ramp. Not a DataTypes/boss-array slot: EncounterCount
+    // (23) plus the three plain-member "Extra" ids (23-25) already exhaust that
+    // array (see SolakarState/VaelastraszState precedent below), so this
+    // follows the same plain SetData-channel-constant pattern as AREATRIGGER.
+    DATA_SEAL_OF_ASCENSION          = 3,
+    ITEM_SEAL_OF_ASCENSION          = 12344
 };
 
 enum GameObjectsIds
 {
     GO_ROOKERY_EGG                  = 175124,
     // Doors
+    GO_DRAGONSPINE_DOOR             = 164725, // "Dragonspine Door", UBRS entrance
+    GO_BRAZIER_1                    = 175528,
+    GO_BRAZIER_2                    = 175529,
+    GO_BRAZIER_3                    = 175530,
+    GO_BRAZIER_4                    = 175531,
+    GO_BRAZIER_5                    = 175532,
+    GO_BRAZIER_6                    = 175533,
     GO_EMBERSEER_IN                 = 175244, // First door to Pyroguard Emberseer
     GO_DOORS                        = 175705, // Second door to Pyroguard Emberseer
     GO_EMBERSEER_OUT                = 175153, // Door after Pyroguard Emberseer event

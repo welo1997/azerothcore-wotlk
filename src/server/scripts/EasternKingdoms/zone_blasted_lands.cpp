@@ -22,6 +22,7 @@ Quest support: 3628. Teleporter to Rise of the Defiler.
 
 #include "Group.h"
 #include "Player.h"
+#include "PlayerScript.h"
 #include "ScriptedCreature.h"
 #include "SpellAuraEffects.h"
 #include "SpellScript.h"
@@ -167,27 +168,37 @@ public:
     }
 };
 
-// 21056 - Mark of Kazzak: heal Kazzak when the marked target dies still carrying it.
-class spell_mark_of_kazzak : public AuraScript
+// worldboss-ai (2026-09-23) shipped a heal-on-death hook tied to the Mark of
+// Kazzak aura itself (this class used to live here as `spell_mark_of_kazzak`,
+// 5% of max HP) as its own untuned guess -- it was never bound to spell 21056
+// by any `spell_script_names` row (Realm A boot log: "Script named
+// 'spell_mark_of_kazzak' is not assigned in the database"), so it never fired.
+// Two independent sources agree the real 1.12 mechanic is a *separate* passive
+// unrelated to the Mark -- Capture Soul, a flat 70,000 HP heal whenever any
+// nearby player dies -- so the stale, never-bound class is replaced outright
+// rather than bound as written (encounters-remaining-2026-09-23.md, "Mark of
+// Kazzak's heal amount"). Owner decision on the exact number is still
+// formally open (recorded there); this ships the driver's stated default.
+enum KazzakCaptureSoul
 {
-    PrepareAuraScript(spell_mark_of_kazzak);
+    NPC_KAZZAK                  = 12397,
+    CAPTURE_SOUL_HEAL           = 70000,
+    CAPTURE_SOUL_RADIUS         = 100 // yards -- "large radius" per the sources, no exact value found
+};
 
-    void HandleRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+class player_kazzak_capture_soul : public PlayerScript
+{
+public:
+    player_kazzak_capture_soul() : PlayerScript("player_kazzak_capture_soul") { }
+
+    void OnPlayerJustDied(Player* player) override
     {
-        if (GetTargetApplication()->GetRemoveMode() != AURA_REMOVE_BY_DEATH)
-        {
-            return;
-        }
+        std::list<Creature*> kazzaks;
+        GetCreatureListWithEntryInGrid(kazzaks, player, NPC_KAZZAK, CAPTURE_SOUL_RADIUS);
 
-        if (Unit* caster = GetCaster())
-        {
-            caster->SetHealth(std::min(caster->GetMaxHealth(), caster->GetHealth() + CalculatePct(caster->GetMaxHealth(), 5)));
-        }
-    }
-
-    void Register() override
-    {
-        AfterEffectRemove += AuraEffectRemoveFn(spell_mark_of_kazzak::HandleRemove, EFFECT_0, SPELL_AURA_PERIODIC_MANA_LEECH, AURA_EFFECT_HANDLE_REAL);
+        for (Creature* kazzak : kazzaks)
+            if (kazzak->IsAlive())
+                kazzak->SetHealth(std::min(kazzak->GetMaxHealth(), kazzak->GetHealth() + CAPTURE_SOUL_HEAL));
     }
 };
 
@@ -195,5 +206,5 @@ void AddSC_blasted_lands()
 {
     RegisterSpellScript(spell_razelikh_teleport_group);
     new boss_kazzak();
-    RegisterSpellScript(spell_mark_of_kazzak);
+    new player_kazzak_capture_soul();
 }
