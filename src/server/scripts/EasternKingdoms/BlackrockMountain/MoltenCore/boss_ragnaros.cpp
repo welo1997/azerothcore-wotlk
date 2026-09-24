@@ -283,10 +283,23 @@ struct boss_ragnaros : public BossAI
             }
         }
 
-        if (!UpdateVictim())
-            return;
+        // Tick the combat-event clock unconditionally, matching 1.12's shape
+        // (cmangos-classic UnitAI::UpdateAI ticks timers before any victim
+        // check; only action *execution* is gated on a victim below). Gating
+        // events.Update() itself behind UpdateVictim() means any tick where
+        // the threat-list top target is momentarily unreachable/unacceptable
+        // (a brief LoS break, a tank swap, a target stepping out of melee)
+        // drops that tick's diff entirely instead of just skipping actions.
+        // Every other scheduled event recovers unnoticed because its own
+        // interval is short next to ordinary combat noise; EVENT_SUBMERGE's
+        // 180s interval is the one most likely to never accumulate enough
+        // wall-clock time to fire during a real, chaotic raid pull.
+        bool hasVictim = UpdateVictim();
 
         events.Update(diff);
+
+        if (!hasVictim)
+            return;
 
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
