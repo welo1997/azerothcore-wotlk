@@ -283,6 +283,22 @@ struct boss_ragnaros : public BossAI
             }
         }
 
+        // Diagnostic (wvp-ragnaros-submerge): throttled ground-truth log of
+        // engagement/victim state, requested by the driver to confirm the
+        // events-clock stall directly rather than inferring it from client
+        // cast-signal cadence. Remove once the fix is confirmed.
+        {
+            static uint32 sDiagAccum = 0;
+            sDiagAccum += diff;
+            if (sDiagAccum >= 5000)
+            {
+                sDiagAccum = 0;
+                LOG_ERROR("scripts.ai", "RAGDIAG guid={} isEngaged={} isInCombat={} reactPassive={} hasVictim={} eventsEmpty={} eventsPhaseMask={}",
+                    me->GetGUID().ToString(), me->IsEngaged(), me->IsInCombat(), me->HasReactState(REACT_PASSIVE),
+                    (me->GetVictim() != nullptr), events.Empty(), uint32(events.GetPhaseMask()));
+            }
+        }
+
         // Tick the combat-event clock unconditionally, matching 1.12's shape
         // (cmangos-classic UnitAI::UpdateAI ticks timers before any victim
         // check; only action *execution* is gated on a victim below). Gating
