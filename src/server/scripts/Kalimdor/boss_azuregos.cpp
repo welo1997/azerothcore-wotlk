@@ -16,6 +16,7 @@
  */
 
 #include "CreatureScript.h"
+#include "Log.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
@@ -59,7 +60,21 @@ public:
         {
             scheduler.CancelAll();
             me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
-            me->RestoreFaction();
+            // Root cause (encounters-remaining-2026-09-23.md §1, confirmed live via
+            // Server.log: IsEngaged() reads false for essentially the whole fight while
+            // IsInCombat() stays true -- UpdateAI's `if (!UpdateVictim()) return;` then
+            // skips scheduler.Update every tick, so none of JustEngagedWith's scheduled
+            // casts ever dispatch): RestoreFaction() reverted him to his DB default
+            // faction (7, not hostile-to-players) on every Reset(), which only the now-
+            // removed OnGossipSelect ever overrode to FACTION_ENEMY. A player who engages
+            // him directly (as any real client does -- 1.12 Azuregos has no "declare war"
+            // dialogue, confirmed against cmangos-classic's boss_azuregos.cpp,
+            // cdcb221f556c0af246920c94f9c49cca425e772a) gets one instant JustEngagedWith
+            // (real melee still lands once), then an immediate evade back to the non-
+            // hostile faction his own AI can never legally keep as a victim. Verified live:
+            // forcing FACTION_ENEMY via `.modify faction 168` alone (no other change) let
+            // 5 of 6 kit spells fire within the same 45s window that landed zero before.
+            me->SetFaction(FACTION_ENEMY);
             me->GetMap()->DoForAllPlayers([&](Player* p)
                 {
                     if (p->GetZoneId() == me->GetZoneId())
@@ -140,9 +155,7 @@ public:
         void UpdateAI(uint32 diff) override
         {
             if (!UpdateVictim())
-            {
                 return;
-            }
 
             scheduler.Update(diff, [this]
             {
@@ -150,14 +163,6 @@ public:
             });
         }
     };
-
-    bool OnGossipSelect(Player* player, Creature* creature, uint32 /*sender*/, uint32 /*action*/) override
-    {
-        CloseGossipMenuFor(player);
-        creature->SetFaction(FACTION_ENEMY);
-        creature->AI()->AttackStart(player);
-        return true;
-    }
 
     CreatureAI* GetAI(Creature* creature) const override
     {

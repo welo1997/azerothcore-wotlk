@@ -16142,10 +16142,11 @@ void Unit::RewardRage(uint32 damage, uint32 weaponSpeedHitFactor, bool attacker)
 
     if (attacker)
     {
-        // see Bornak's bluepost explanation (05/29/2009)
-        float rageFromDamageDealt = damage / rageconversion * 7.5f;
-        addRage = (rageFromDamageDealt + weaponSpeedHitFactor) / 2.0f;
-        addRage = std::min(addRage, rageFromDamageDealt * 2.0f);
+        // 1.12: flat damage-to-rage conversion, no weapon-speed/hit-factor
+        // term. The blend removed here ("Bornak's bluepost explanation
+        // 05/29/2009") is WotLK patch 3.0.8, not vanilla -- weaponSpeedHitFactor
+        // is left computed at the call sites as a now-unused parameter.
+        addRage = damage / rageconversion * 7.5f;
         AddPct(addRage, GetTotalAuraModifier(SPELL_AURA_MOD_RAGE_FROM_DAMAGE_DEALT));
     }
     else

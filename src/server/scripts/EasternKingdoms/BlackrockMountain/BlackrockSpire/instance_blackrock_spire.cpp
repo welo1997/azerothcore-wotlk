@@ -37,7 +37,9 @@ enum EventIds
     EVENT_DRAGONSPIRE_ROOM_STORE           = 1,
     EVENT_DRAGONSPIRE_ROOM_CHECK           = 2,
 
-    EVENT_SOLAKAR_WAVE                     = 3
+    EVENT_SOLAKAR_WAVE                     = 3,
+
+    EVENT_SEAL_DOOR_STEP                   = 4
 };
 
 constexpr Milliseconds TIMER_SOLAKAR_WAVE = 30s;
@@ -78,6 +80,8 @@ struct instance_blackrock_spire : public InstanceScript
     uint32 SolakarState       = NOT_STARTED; // there should be a global instance encounter state, where is it?
     GuidVector SolakarSummons;
     uint32 VaelastraszState   = NOT_STARTED;
+    uint32 SealOfAscensionState = NOT_STARTED;
+    uint8 SealDoorStep          = 0;
 
     instance_blackrock_spire(InstanceMap* map) : InstanceScript(map)
     {
@@ -89,6 +93,8 @@ struct instance_blackrock_spire : public InstanceScript
         SolakarState       = NOT_STARTED;
         SolakarSummons.clear();
         VaelastraszState   = NOT_STARTED;
+        SealOfAscensionState = NOT_STARTED;
+        SealDoorStep          = 0;
     }
 
     void CreatureLooted(Creature* creature, LootType loot) override
@@ -177,6 +183,34 @@ struct instance_blackrock_spire : public InstanceScript
     {
         switch (go->GetEntry())
         {
+            case GO_DRAGONSPINE_DOOR:
+                go_dragonspineDoor = go->GetGUID();
+                HandleGameObject(ObjectGuid::Empty, SealOfAscensionState == DONE, go);
+                break;
+            case GO_BRAZIER_1:
+                go_braziers[0] = go->GetGUID();
+                HandleGameObject(ObjectGuid::Empty, SealOfAscensionState == DONE, go);
+                break;
+            case GO_BRAZIER_2:
+                go_braziers[1] = go->GetGUID();
+                HandleGameObject(ObjectGuid::Empty, SealOfAscensionState == DONE, go);
+                break;
+            case GO_BRAZIER_3:
+                go_braziers[2] = go->GetGUID();
+                HandleGameObject(ObjectGuid::Empty, SealOfAscensionState == DONE, go);
+                break;
+            case GO_BRAZIER_4:
+                go_braziers[3] = go->GetGUID();
+                HandleGameObject(ObjectGuid::Empty, SealOfAscensionState == DONE, go);
+                break;
+            case GO_BRAZIER_5:
+                go_braziers[4] = go->GetGUID();
+                HandleGameObject(ObjectGuid::Empty, SealOfAscensionState == DONE, go);
+                break;
+            case GO_BRAZIER_6:
+                go_braziers[5] = go->GetGUID();
+                HandleGameObject(ObjectGuid::Empty, SealOfAscensionState == DONE, go);
+                break;
             case GO_EMBERSEER_IN:
                 go_emberseerin = go->GetGUID();
                 HandleGameObject(ObjectGuid::Empty, GetBossState(DATA_DRAGONSPIRE_ROOM) == DONE, go);
@@ -362,6 +396,17 @@ struct instance_blackrock_spire : public InstanceScript
             case DATA_VAELASTRASZ:
                 VaelastraszState = data;
                 break;
+            case DATA_SEAL_OF_ASCENSION:
+                // Idempotent: a second player crossing the trigger with the seal
+                // (or the same player retriggering it) must not restart the
+                // brazier sequence or re-fire DoUseDoorOrButton on an open door.
+                if (data == DONE && SealOfAscensionState != DONE)
+                {
+                    SealOfAscensionState = DONE;
+                    SealDoorStep = 0;
+                    Events.ScheduleEvent(EVENT_SEAL_DOOR_STEP, 100ms);
+                }
+                break;
             case DATA_UROK_DOOMHOWL:
                 if (data == FAIL)
                 {
@@ -395,6 +440,8 @@ struct instance_blackrock_spire : public InstanceScript
             return SolakarState;
         else if (type == DATA_VAELASTRASZ)
             return VaelastraszState;
+        else if (type == DATA_SEAL_OF_ASCENSION)
+            return SealOfAscensionState;
         else
             return InstanceScript::GetData(type);
     }
@@ -524,10 +571,50 @@ struct instance_blackrock_spire : public InstanceScript
                         CurrentSolakarWave++;
                     }
                     break;
+                case EVENT_SEAL_DOOR_STEP:
+                    UnlockDragonspineDoorStep();
+                    break;
                 default:
                     break;
             }
         }
+    }
+
+    // Mirrors 1.12's own DoOpenUpperDoorIfCan: braziers 1+2, then 3+4, then
+    // 5+6 at 1s intervals, then the Dragonspine Door itself on the 4th step.
+    void UnlockDragonspineDoorStep()
+    {
+        switch (SealDoorStep)
+        {
+            case 0:
+                if (GameObject* b1 = instance->GetGameObject(go_braziers[0]))
+                    HandleGameObject(ObjectGuid::Empty, true, b1);
+                if (GameObject* b2 = instance->GetGameObject(go_braziers[1]))
+                    HandleGameObject(ObjectGuid::Empty, true, b2);
+                break;
+            case 1:
+                if (GameObject* b3 = instance->GetGameObject(go_braziers[2]))
+                    HandleGameObject(ObjectGuid::Empty, true, b3);
+                if (GameObject* b4 = instance->GetGameObject(go_braziers[3]))
+                    HandleGameObject(ObjectGuid::Empty, true, b4);
+                break;
+            case 2:
+                if (GameObject* b5 = instance->GetGameObject(go_braziers[4]))
+                    HandleGameObject(ObjectGuid::Empty, true, b5);
+                if (GameObject* b6 = instance->GetGameObject(go_braziers[5]))
+                    HandleGameObject(ObjectGuid::Empty, true, b6);
+                break;
+            case 3:
+                if (GameObject* door = instance->GetGameObject(go_dragonspineDoor))
+                    HandleGameObject(ObjectGuid::Empty, true, door);
+                break;
+            default:
+                break;
+        }
+
+        ++SealDoorStep;
+        if (SealDoorStep < 4)
+            Events.ScheduleEvent(EVENT_SEAL_DOOR_STEP, 1s);
     }
 
     void Dragonspireroomstore()
@@ -650,6 +737,8 @@ protected:
     ObjectGuid go_urokChallenge;
     std::vector<ObjectGuid> go_urokOgreCirles;
     std::vector<ObjectGuid> UrokMobs;
+    ObjectGuid go_dragonspineDoor;
+    ObjectGuid go_braziers[6];
 };
 
 /*#####
@@ -668,6 +757,12 @@ public:
             if (InstanceScript* instance = player->GetInstanceScript())
             {
                 instance->SetData(AREATRIGGER, AREATRIGGER_DRAGONSPIRE_HALL);
+                // 1.12: this same trigger volume (areatrigger 2046, "UBRS, way to
+                // upper") both sorts the Dragonspire Hall room mobs above and, if
+                // the player carries the finished Seal of Ascension (12344), opens
+                // the Dragonspine Door via the six-brazier sequence.
+                if (player->HasItemCount(ITEM_SEAL_OF_ASCENSION, 1))
+                    instance->SetData(DATA_SEAL_OF_ASCENSION, DONE);
                 return true;
             }
         }
@@ -778,6 +873,27 @@ public:
             }
         }
         return false;
+    }
+};
+
+/*#####
+# go_dragonspine_door
+#####*/
+
+// GameObject::Use() (GameObject.cpp) calls UseDoorOrButton() unconditionally
+// for GAMEOBJECT_TYPE_DOOR -- GO_FLAG_LOCKED is never checked on that path, so
+// data alone cannot stop a click. The one hook that runs first and can abort
+// the whole Use() is `if (AI()->GossipHello(playerUser, false)) return;`
+// (GameObject.cpp:1479, ahead of the door switch at line 1498) -- returning
+// true here consumes the click and leaves the door untouched.
+struct go_dragonspine_door : public GameObjectAI
+{
+    go_dragonspine_door(GameObject* go) : GameObjectAI(go) {}
+
+    bool GossipHello(Player* /*player*/, bool /*reportUse*/) override
+    {
+        InstanceScript* instance = me->GetInstanceScript();
+        return !instance || instance->GetData(DATA_SEAL_OF_ASCENSION) != DONE;
     }
 };
 
@@ -1009,6 +1125,7 @@ void AddSC_instance_blackrock_spire()
     new at_dragonspire_hall();
     new at_blackrock_stadium();
     RegisterBlackrockSpireGameObjectAI(go_father_flame);
+    RegisterBlackrockSpireGameObjectAI(go_dragonspine_door);
     new near_scarshield_infiltrator();
     new at_scarshield_infiltrator();
     RegisterSpellScript(spell_blackrock_spire_call_of_vaelastrasz);
