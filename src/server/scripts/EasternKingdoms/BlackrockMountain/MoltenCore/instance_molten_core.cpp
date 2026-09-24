@@ -63,9 +63,20 @@ struct instance_molten_core : public InstanceScript
         LoadMinionData(minionData);
     }
 
+    // 1.12 (cmangos/mangos-classic @ 8ec338a1704, molten_core.cpp
+    // DoSpawnMajordomoIfCan()): re-entry only re-triggers the summon check,
+    // it never bypasses the 7-rune requirement -- CheckMajordomoExecutus()
+    // here covers the boss-DONE half, _dousedRuneMask covers the douse half.
+    // The respawn branch (Majordomo already DONE, e.g. after a Ragnaros wipe)
+    // is uiSummonPos==1 there and SummonMajordomoExecutus()'s else branch
+    // here -- neither depends on the rune mask, both fire on prereqs alone.
     void OnPlayerEnter(Player* /*player*/) override
     {
-        if (CheckMajordomoExecutus())
+        if (!CheckMajordomoExecutus())
+            return;
+
+        if (GetBossState(DATA_MAJORDOMO_EXECUTUS) == DONE ||
+            _dousedRuneMask == ((1 << MAX_MC_LINKED_BOSS_OBJ) - 1))
             SummonMajordomoExecutus();
     }
 
@@ -175,7 +186,14 @@ struct instance_molten_core : public InstanceScript
                     if (linkedBossObjData[i].runeId != go->GetEntry())
                         continue;
 
-                    if (GetBossState(linkedBossObjData[i].bossId) == DONE)
+                    // Restore this rune's open visual on instance load: it
+                    // reflects a manual douse (_dousedRuneMask, persisted via
+                    // ReadSaveDataMore), never the boss's own state -- a dead
+                    // prereq boss with an undoused rune must stay closed
+                    // (cmangos molten_core.cpp OnObjectCreate: `GetData(...)
+                    // == SPECIAL`, the rune's own persisted flag, not the
+                    // boss's).
+                    if (_dousedRuneMask & (1 << i))
                         go->UseDoorOrButton(WEEK * IN_MILLISECONDS);
                     else
                         _runesGUIDs[linkedBossObjData[i].bossId] = go->GetGUID();
@@ -365,6 +383,24 @@ struct instance_molten_core : public InstanceScript
         }
     }
 
+    // uint8 read via istream extraction is treated as a single char, not a
+    // parsed integer (same trap other instance scripts avoid by using
+    // uint32 fields, e.g. instance_shadowfang_keep.cpp's _encounters[]) --
+    // _dousedRuneMask is declared uint32 below for exactly that reason, even
+    // though only its low 7 bits are ever set. A save written before this
+    // unit has no trailing field: the extraction fails, the stream sets
+    // failbit, and _dousedRuneMask keeps its member-initializer value (0) --
+    // backward compatible with no explicit fallback needed.
+    void ReadSaveDataMore(std::istringstream& data) override
+    {
+        data >> _dousedRuneMask;
+    }
+
+    void WriteSaveDataMore(std::ostringstream& data) override
+    {
+        data << _dousedRuneMask;
+    }
+
     bool CheckMajordomoExecutus() const
     {
         if (GetBossState(DATA_RAGNAROS) == DONE)
@@ -405,7 +441,8 @@ private:
     ObjectGuid _magmadarGUID;
 
     // Bit i set once linkedBossObjData[i]'s rune has been manually doused.
-    uint8 _dousedRuneMask = 0;
+    // Persisted via ReadSaveDataMore/WriteSaveDataMore below.
+    uint32 _dousedRuneMask = 0;
 };
 
 class go_molten_core_rune : public GameObjectScript
