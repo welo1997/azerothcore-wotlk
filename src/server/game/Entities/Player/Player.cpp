@@ -5097,6 +5097,7 @@ void Player::HandleBaseModFlatValue(BaseModGroup modGroup, float amount, bool ap
         return;
     }
 
+    LOG_ERROR("vpdbg", "HBMFV {} grp={} amt={} apply={} before={} canmod={}", GetName(), uint32(modGroup), amount, apply, m_auraBaseFlatMod[modGroup], CanModifyStats());
     m_auraBaseFlatMod[modGroup] += apply ? amount : -amount;
     UpdateBaseModGroup(modGroup);
 }
@@ -7065,6 +7066,7 @@ void Player::_ApplyItemBonuses(ItemTemplate const* proto, uint8 slot, bool apply
     if (proto->ArmorDamageModifier > 0 && sScriptMgr->OnPlayerCanArmorDamageModifier(this))
         HandleStatFlatModifier(UNIT_MOD_ARMOR, TOTAL_VALUE, float(proto->ArmorDamageModifier), apply);
 
+    LOG_ERROR("vpdbg", "IB {} slot={} item={} block={} apply={}", GetName(), slot, proto->ItemId, proto->Block, apply);
     if (proto->Block)
         HandleBaseModFlatValue(SHIELD_BLOCK_VALUE, float(proto->Block), apply);
 
@@ -7808,6 +7810,7 @@ void Player::_ApplyAllItemMods()
     {
         if (m_items[i])
         {
+            LOG_ERROR("vpdbg", "AllItemMods slot={} item={} broken={} canuse={}", i, m_items[i]->GetEntry(), m_items[i]->IsBroken(), CanUseAttackType(GetAttackBySlot(i)));
             if (m_items[i]->IsBroken() || !CanUseAttackType(GetAttackBySlot(i)))
                 continue;
 

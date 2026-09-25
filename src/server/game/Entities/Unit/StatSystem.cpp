@@ -538,6 +538,7 @@ void Player::UpdateAttackPowerAndDamage(bool ranged)
 
 void Player::UpdateShieldBlockValue()
 {
+    LOG_ERROR("vpdbg", "USBV {} flat={} str={} val={} canmod={}", GetName(), m_auraBaseFlatMod[SHIELD_BLOCK_VALUE], GetStat(STAT_STRENGTH), GetShieldBlockValue(), CanModifyStats());
     SetUInt32Value(PLAYER_SHIELD_BLOCK, GetShieldBlockValue());
 }
 
