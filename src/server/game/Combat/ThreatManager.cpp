@@ -31,6 +31,7 @@
 #include "CreatureAI.h"
 #include "CreatureGroups.h"
 #include "MotionMaster.h"
+#include "MovementGenerator.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "SpellAuraEffects.h"
