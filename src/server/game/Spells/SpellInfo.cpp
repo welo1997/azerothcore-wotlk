@@ -2168,8 +2168,16 @@ SpellSpecificType SpellInfo::LoadSpellSpecific() const
                     return SPELL_SPECIFIC_HAND;
 
                 // Judgement of Wisdom, Judgement of Light, Judgement of Justice
-                if (Id == 20184 || Id == 20185 || Id == 20186)
-                    return SPELL_SPECIFIC_JUDGEMENT;
+                // (1.12 ranks and the Crusader's judgement: paladin-seals-112, sql/world/392_)
+                switch (Id)
+                {
+                    case 20184: case 20185: case 20186:
+                    case 20344: case 20345: case 20346: case 20354: case 20355:
+                    case 21183: case 20188: case 20300: case 20301: case 20302: case 20303:
+                        return SPELL_SPECIFIC_JUDGEMENT;
+                    default:
+                        break;
+                }
 
                 // only paladin auras have this (for palaldin class family)
                 if (SpellFamilyFlags[2] & 0x00000020)

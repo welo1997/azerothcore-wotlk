@@ -62,6 +62,13 @@ enum PaladinSpells
     SPELL_PALADIN_JUDGEMENT_OF_LIGHT             = 20185,
     SPELL_PALADIN_JUDGEMENT_OF_WISDOM            = 20186,
 
+    // seal auras that spell_pal_judgement maps to a 1.12 judgement (and then consumes)
+    SPELL_PALADIN_112_SEAL_OF_JUSTICE            = 20164,
+    SPELL_PALADIN_112_SEAL_OF_LIGHT              = 20165,
+    SPELL_PALADIN_112_SEAL_OF_WISDOM             = 20166,
+    SPELL_PALADIN_112_SEAL_OF_RIGHTEOUSNESS_A    = 20154,
+    SPELL_PALADIN_112_SEAL_OF_RIGHTEOUSNESS_B    = 21084,
+
     SPELL_PALADIN_GLYPH_OF_SALVATION             = 63225,
 
     SPELL_PALADIN_RIGHTEOUS_DEFENSE_TAUNT        = 31790,
@@ -982,8 +989,61 @@ public:
                 }
         }
 
-        GetCaster()->CastSpell(GetHitUnit(), _spellId, true);
-        GetCaster()->CastSpell(GetHitUnit(), spellId2, true);
+        // 1.12 (paladin-seals-112): ONE Judgement -- the active seal picks what lands on the target and is
+        // CONSUMED (3.3.5a keeps the seal and lets each Judgement spell name its own debuff).
+        //   Light / Wisdom / Justice -> that judgement debuff only (no direct damage);
+        //   Righteousness / Command  -> the direct-damage judgement only (no debuff);
+        //   any other seal (not in our data) or none -> the stock 3.3.5a behaviour, seal kept.
+        uint32 debuffId = _spellId;
+        uint32 damageId = spellId2;
+        uint32 sealId = 0;
+        Unit::AuraApplicationMap const& applied = GetCaster()->GetAppliedAuras();
+        for (Unit::AuraApplicationMap::const_iterator itr = applied.begin(); itr != applied.end() && !sealId; ++itr)
+        {
+            SpellInfo const* sealInfo = itr->second->GetBase()->GetSpellInfo();
+            if (sealInfo->SpellFamilyName != SPELLFAMILY_PALADIN || sealInfo->GetSpellSpecific() != SPELL_SPECIFIC_SEAL)
+                continue;
+
+            switch (sealInfo->Id)
+            {
+                case SPELL_PALADIN_112_SEAL_OF_LIGHT:
+                    debuffId = SPELL_PALADIN_JUDGEMENT_OF_LIGHT;
+                    damageId = 0;
+                    break;
+                case SPELL_PALADIN_112_SEAL_OF_WISDOM:
+                    debuffId = SPELL_PALADIN_JUDGEMENT_OF_WISDOM;
+                    damageId = 0;
+                    break;
+                case SPELL_PALADIN_112_SEAL_OF_JUSTICE:
+                    debuffId = SPELL_PALADIN_JUDGEMENT_OF_JUSTICE;
+                    damageId = 0;
+                    break;
+                case SPELL_PALADIN_112_SEAL_OF_RIGHTEOUSNESS_A:
+                case SPELL_PALADIN_112_SEAL_OF_RIGHTEOUSNESS_B:
+                case SPELL_PALADIN_SEAL_OF_COMMAND:
+                    debuffId = 0;
+                    break;
+                default:
+                {
+                    // 1.12 seal ranks (Light/Wisdom r2+, the Crusader r1-6): effect 3 is a dummy whose value is the
+                    // judgement spell id; a judgement that applies an aura is a debuff, and lands alone.
+                    AuraEffect const* dummy = itr->second->GetBase()->GetEffect(EFFECT_2);
+                    SpellInfo const* judgement = dummy && dummy->GetAuraType() == SPELL_AURA_DUMMY ? sSpellMgr->GetSpellInfo(dummy->GetAmount()) : nullptr;
+                    if (!judgement || judgement->Effects[EFFECT_0].Effect != SPELL_EFFECT_APPLY_AURA)
+                        continue;
+                    debuffId = judgement->Id;
+                    damageId = 0;
+                    break;
+                }
+            }
+
+            sealId = sealInfo->Id;
+        }
+
+        if (debuffId)
+            GetCaster()->CastSpell(GetHitUnit(), debuffId, true);
+        if (damageId)
+            GetCaster()->CastSpell(GetHitUnit(), damageId, true);
 
         // Tier 5 Holy - 2 Set
         if (GetCaster()->HasAura(SPELL_IMPROVED_JUDGEMENT))
@@ -1012,6 +1072,10 @@ public:
                 }
             }
         }
+
+        // 1.12: the Judgement spends the seal (after everything above that reads it)
+        if (sealId)
+            GetCaster()->RemoveAurasDueToSpell(sealId);
     }
 
     void Register() override
@@ -1336,7 +1400,31 @@ class spell_pal_sheath_of_light : public AuraScript
     }
 };
 
-// 20185 - Judgement of Light (debuff on target)
+// 21082, 20162, 20305-20308 - Seal of the Crusader (1.12): +attack speed, and the damage is cut so the DPS stays the same
+class spell_pal_seal_of_the_crusader_112 : public AuraScript
+{
+    PrepareAuraScript(spell_pal_seal_of_the_crusader_112);
+
+    void HandleApply(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
+    {
+        float amount = float(aurEff->GetAmount());
+        GetTarget()->ApplyStatPctModifier(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT, (-100.0f * amount) / (amount + 100.0f));
+    }
+
+    void HandleRemove(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
+    {
+        // the exact inverse of the factor applied above: (1 - a/(a+100)) * (1 + a/100) == 1
+        GetTarget()->ApplyStatPctModifier(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT, float(aurEff->GetAmount()));
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectApplyFn(spell_pal_seal_of_the_crusader_112::HandleApply, EFFECT_1, SPELL_AURA_MOD_ATTACKSPEED, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_pal_seal_of_the_crusader_112::HandleRemove, EFFECT_1, SPELL_AURA_MOD_ATTACKSPEED, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
+// 20185, 20344-20346 - Judgement of Light (debuff on target, ranks 1-4)
 class spell_pal_judgement_of_light_heal : public AuraScript
 {
     PrepareAuraScript(spell_pal_judgement_of_light_heal);
@@ -1354,8 +1442,17 @@ class spell_pal_judgement_of_light_heal : public AuraScript
         if (!attacker)
             return;
 
-        int32 bp = int32(attacker->CountPctFromMaxHealth(aurEff->GetAmount()));
-        attacker->CastCustomSpell(attacker, SPELL_PALADIN_JUDGEMENT_OF_LIGHT_HEAL, &bp, nullptr, nullptr, true, nullptr, aurEff, GetCasterGUID());
+        // 1.12: a fixed heal by the Judgement's rank (25/34/49/61, payload spells 20267/20341-3, flat, no spell power)
+        uint32 payload = 0;
+        switch (GetId())
+        {
+            case 20185: payload = 20267; break;
+            case 20344: payload = 20341; break;
+            case 20345: payload = 20342; break;
+            case 20346: payload = 20343; break;
+            default: return;
+        }
+        attacker->CastSpell(attacker, payload, true, nullptr, aurEff, GetCasterGUID());
     }
 
     void Register() override
@@ -1364,7 +1461,7 @@ class spell_pal_judgement_of_light_heal : public AuraScript
     }
 };
 
-// 20186 - Judgement of Wisdom (debuff on target)
+// 20186, 20354-20355 - Judgement of Wisdom (debuff on target, ranks 1-3)
 class spell_pal_judgement_of_wisdom_mana : public AuraScript
 {
     PrepareAuraScript(spell_pal_judgement_of_wisdom_mana);
@@ -1387,9 +1484,16 @@ class spell_pal_judgement_of_wisdom_mana : public AuraScript
         if (!attacker)
             return;
 
-        SpellInfo const* spellInfo = sSpellMgr->AssertSpellInfo(SPELL_PALADIN_JUDGEMENT_OF_WISDOM_MANA);
-        int32 bp = int32(CalculatePct(attacker->GetCreateMana(), spellInfo->Effects[EFFECT_0].CalcValue()));
-        attacker->CastCustomSpell(attacker, SPELL_PALADIN_JUDGEMENT_OF_WISDOM_MANA, &bp, nullptr, nullptr, true, nullptr, aurEff, GetCasterGUID());
+        // 1.12: a fixed mana return by the Judgement's rank (33/46/59, payload spells 20268/20352/20353)
+        uint32 payload = 0;
+        switch (GetId())
+        {
+            case 20186: payload = 20268; break;
+            case 20354: payload = 20352; break;
+            case 20355: payload = 20353; break;
+            default: return;
+        }
+        attacker->CastSpell(attacker, payload, true, nullptr, aurEff, GetCasterGUID());
     }
 
     void Register() override
@@ -2375,6 +2479,7 @@ void AddSC_paladin_spell_scripts()
     RegisterSpellScript(spell_pal_judgements_of_the_wise);
     RegisterSpellScript(spell_pal_righteous_vengeance);
     RegisterSpellScript(spell_pal_sheath_of_light);
+    RegisterSpellScript(spell_pal_seal_of_the_crusader_112);
     RegisterSpellScript(spell_pal_judgement_of_light_heal);
     RegisterSpellScript(spell_pal_judgement_of_wisdom_mana);
     RegisterSpellScript(spell_pal_spiritual_attunement);
