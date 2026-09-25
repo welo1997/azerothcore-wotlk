@@ -49,6 +49,9 @@ public:
 
     // used by Evade code for select point to evade with expected restart default movement
     virtual bool GetResetPosition(float& /*x*/, float& /*y*/, float& /*z*/) { return false; }
+    // Centre of the area this idle generator keeps the creature in, plus how far past the
+    // leash radius it may legitimately stand (a random wanderer roams wanderDistance from it).
+    virtual bool GetLeashPosition(float& x, float& y, float& extraRadius) { float z; extraRadius = 0.0f; return GetResetPosition(x, y, z); }
 };
 
 template<class T, class D>

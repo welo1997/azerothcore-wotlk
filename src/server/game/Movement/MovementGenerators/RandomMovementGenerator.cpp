@@ -316,6 +316,24 @@ bool RandomMovementGenerator<Creature>::DoUpdate(Creature* creature, const uint3
 }
 
 template<>
+// Leash is measured from the roam centre, not from the current leg's destination
+// (GetResetPosition), which made a world boss that walks 40yd legs (Kazzak
+// MoveRandom(40)) drop every ref OFFLINE and evade at contact: worldboss-desync.
+bool RandomMovementGenerator<Creature>::GetLeashPosition(float& x, float& y, float& extraRadius)
+{
+    if (G3D::fuzzyNe(_initialPosition.GetExactDist2d(0.0f, 0.0f), 0.0f))
+    {
+        x = _initialPosition.GetPositionX();
+        y = _initialPosition.GetPositionY();
+        extraRadius = _wanderDistance;
+        return true;
+    }
+    float z;
+    extraRadius = 0.0f;
+    return GetResetPosition(x, y, z);
+}
+
+template<>
 bool RandomMovementGenerator<Creature>::GetResetPosition(float& x, float& y, float& z)
 {
     if (_currentPoint < RANDOM_POINTS_NUMBER)

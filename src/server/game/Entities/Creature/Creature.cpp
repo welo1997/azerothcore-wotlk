@@ -2729,11 +2729,11 @@ bool Creature::CanCreatureAttack(Unit const* victim, bool skipDistCheck) const
     if (!dist)
         return true;
 
-    float x, y, z;
-    x = y = z = 0.0f;
+    float x, y, extra;
+    x = y = extra = 0.0f;
     MovementGenerator* idleSlot = GetMotionMaster()->GetMotionSlot(MOTION_SLOT_IDLE);
-    if (idleSlot && idleSlot->GetResetPosition(x, y, z))
-        return IsInDist2d(x, y, dist);
+    if (idleSlot && idleSlot->GetLeashPosition(x, y, extra))
+        return IsInDist2d(x, y, dist + extra);
     else
         return IsInDist2d(&m_homePosition, dist);
 }

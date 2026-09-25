@@ -56,6 +56,7 @@ public:
     void DoReset(T*);
     bool DoUpdate(T*, const uint32);
     bool GetResetPosition(float& x, float& y, float& z);
+    bool GetLeashPosition(float& x, float& y, float& extraRadius);
     MovementGeneratorType GetMovementGeneratorType() { return RANDOM_MOTION_TYPE; }
 
 private:
