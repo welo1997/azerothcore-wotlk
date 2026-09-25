@@ -341,6 +341,27 @@ void WorldSession::HandleGameObjectUseOpcode(WorldPacket& recvData)
             if (!(GetPlayer()->IsOnVehicle(GetPlayer()->m_mover) || GetPlayer()->IsMounted()) && !obj->GetGOInfo()->IsUsableMounted())
                 return;
 
+        // wvp: 1.12 (vmangos GameObject::PlayerCanUse) refuses a player USE of a door whose lock needs a
+        // key item the player does not carry; the 3.3.5a client gates this locally, so a raw opcode skips it.
+        // Only the player USE path: script/trigger toggles call UseDoorOrButton directly and are not gated.
+        if (obj->GetGoType() == GAMEOBJECT_TYPE_DOOR && !GetPlayer()->IsGameMaster())
+        {
+            if (LockEntry const* lockInfo = sLockStore.LookupEntry(obj->GetGOInfo()->GetLockId()))
+            {
+                // several key slots are alternatives (any one opens); no key slot = not key-gated, left alone
+                bool needsKey = false, hasKey = false;
+                for (uint8 j = 0; j < MAX_LOCK_CASE; ++j)
+                    if (lockInfo->Type[j] == LOCK_KEY_ITEM && lockInfo->Index[j])
+                    {
+                        needsKey = true;
+                        hasKey = hasKey || GetPlayer()->HasItemCount(lockInfo->Index[j], 1);
+                    }
+
+                if (needsKey && !hasKey)
+                    return;
+            }
+        }
+
         obj->Use(GetPlayer());
     }
 }
