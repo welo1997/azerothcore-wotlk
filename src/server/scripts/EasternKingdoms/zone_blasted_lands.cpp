@@ -114,7 +114,11 @@ public:
         void Reset() override
         {
             scheduler.CancelAll();
-            me->GetMotionMaster()->MoveRandom(40.0f);
+            // Reset() also runs on every evade, where he stands wherever the fight ended; a new
+            // generator would re-centre the roam (and the leash) there, so he drifted across the
+            // zone. Start the roam once, at his spawn, and keep it.
+            if (me->GetMotionMaster()->GetMotionSlotType(MOTION_SLOT_IDLE) != RANDOM_MOTION_TYPE)
+                me->GetMotionMaster()->MoveRandom(40.0f);
         }
 
         void JustEngagedWith(Unit* /*who*/) override

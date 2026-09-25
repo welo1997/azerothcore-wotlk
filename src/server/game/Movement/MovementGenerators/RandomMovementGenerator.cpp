@@ -337,7 +337,9 @@ bool RandomMovementGenerator<Creature>::GetLeashPosition(float& x, float& y, flo
     {
         x = _initialPosition.GetPositionX();
         y = _initialPosition.GetPositionY();
-        extraRadius = _wanderDistance;
+        // one wander leg (his position) + the leash radius of pull: a kite of a full leash
+        // radius from the far end of a leg must not evade him (measured: 70yd was too tight)
+        extraRadius = _wanderDistance + sWorld->getFloatConfig(CONFIG_CREATURE_LEASH_RADIUS);
         return true;
     }
     float z;
