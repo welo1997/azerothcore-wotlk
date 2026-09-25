@@ -58,7 +58,6 @@ public:
 
         void Reset() override
         {
-            LOG_ERROR("wvp.diag", "[WBDIAG] 6109 Reset() engaged={} inCombat={}", me->IsEngaged(), me->IsInCombat());
             scheduler.CancelAll();
             me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
             me->RestoreFaction();
@@ -83,7 +82,6 @@ public:
 
         void JustEngagedWith(Unit* /*who*/) override
         {
-            LOG_ERROR("wvp.diag", "[WBDIAG] 6109 JustEngagedWith");
             DoCastSelf(SPELL_MARK_OF_FROST_AURA);
             Talk(SAY_AGGRO);
 

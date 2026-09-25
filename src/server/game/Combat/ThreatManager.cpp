@@ -25,7 +25,6 @@
 
 #include "ThreatManager.h"
 #include "CombatManager.h"
-#include "Log.h"
 #include "Containers.h"
 #include "Creature.h"
 #include "CreatureAI.h"
@@ -40,7 +39,6 @@
 #include "TemporarySummon.h"
 #include "Unit.h"
 #include "UnitAI.h"
-#include "World.h"
 #include "WorldPacket.h"
 #include <algorithm>
 #include <boost/heap/fibonacci_heap.hpp>
@@ -75,31 +73,11 @@ void ThreatReference::ScaleThreat(float factor)
     _mgr._needClientUpdate = true;
 }
 
-// WBDIAG (temporary): world bosses Kazzak 12397 / Azuregos 6109
-static bool WbDiagOn(Unit const* u) { return u && (u->GetEntry() == 12397 || u->GetEntry() == 6109); }
-
-std::string ThreatReference::WvpDiag() const
-{
-    float rx = 0.f, ry = 0.f, rz = 0.f;
-    MovementGenerator* idle = _owner->GetMotionMaster()->GetMotionSlot(MOTION_SLOT_IDLE);
-    bool const hasReset = idle && idle->GetResetPosition(rx, ry, rz);
-    Position const& home = _owner->GetHomePosition();
-    return Acore::StringFormat("victim={} online={} see={} accept={} canAtk={} canAtkNoDist={} flags={}{} distToReset={:.1f}(has={}) distToHome={:.1f} leashCfg={} evadeState={} lastLeashExt={} inMap={} accessible={}",
-        _victim->GetGUID().ToString(), uint32(_online), _owner->CanSeeOrDetect(_victim), _owner->_IsTargetAcceptable(_victim),
-        _owner->CanCreatureAttack(_victim), _owner->CanCreatureAttack(_victim, true),
-        FlagsAllowFighting(_owner, _victim), FlagsAllowFighting(_victim, _owner),
-        hasReset ? _owner->GetExactDist2d(rx, ry) : -1.f, hasReset, _owner->GetExactDist2d(home.GetPositionX(), home.GetPositionY()),
-        sWorld->getFloatConfig(CONFIG_CREATURE_LEASH_RADIUS), uint32(_owner->GetCombatManager().IsInEvadeMode()),
-        uint32(_owner->GetLastLeashExtensionTime()), _victim->IsInMap(_owner), _victim->isInAccessiblePlaceFor(_owner));
-}
-
 void ThreatReference::UpdateOffline()
 {
     bool const shouldBeOffline = ShouldBeOffline();
     if (shouldBeOffline == IsOffline())
         return;
-    if (WbDiagOn(_owner))
-        LOG_ERROR("wvp.diag", "[WBDIAG] {} ref -> {} :: {}", _owner->GetEntry(), shouldBeOffline ? "OFFLINE" : "ONLINE", WvpDiag());
 
     if (shouldBeOffline)
     {
@@ -509,8 +487,6 @@ void ThreatManager::AddThreat(Unit* target, float amount, SpellInfo const* spell
     target->GetThreatMgr().PutThreatenedByMeRef(_owner->GetGUID(), ref);
 
     ref->UpdateOffline();
-    if (WbDiagOn(_owner))
-        LOG_ERROR("wvp.diag", "[WBDIAG] {} NEWREF online={} engaged={} inCombat={} :: {}", _owner->GetEntry(), ref->IsOnline(), _owner->IsEngaged(), _owner->IsInCombat(), ref->WvpDiag());
     if (ref->IsOnline()) // we only add the threat if the ref is currently available
         ref->AddThreat(amount);
     // Note: AI update registration is handled inside UpdateOffline() when transitioning from OFFLINE
@@ -641,12 +617,6 @@ Unit* ThreatManager::GetFixateTarget() const
 
 void ThreatManager::UpdateVictim()
 {
-    if (WbDiagOn(_owner) && _owner->IsInCombat() && !_owner->IsEngaged())
-    {
-        LOG_ERROR("wvp.diag", "[WBDIAG] {} TICK in-combat-NOT-engaged refs={} needAI={}", _owner->GetEntry(), _myThreatListEntries.size(), _needsAIUpdate.size());
-        for (auto const& pair : _myThreatListEntries)
-            LOG_ERROR("wvp.diag", "[WBDIAG]    {}", pair.second->WvpDiag());
-    }
     ThreatReference const* const newVictim = ReselectVictim();
     bool const newHighest = newVictim && (newVictim != _currentVictimRef);
 
