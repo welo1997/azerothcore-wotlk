@@ -62,6 +62,13 @@ enum PaladinSpells
     SPELL_PALADIN_JUDGEMENT_OF_LIGHT             = 20185,
     SPELL_PALADIN_JUDGEMENT_OF_WISDOM            = 20186,
 
+    // seal auras that spell_pal_judgement maps to a 1.12 judgement (and then consumes)
+    SPELL_PALADIN_112_SEAL_OF_JUSTICE            = 20164,
+    SPELL_PALADIN_112_SEAL_OF_LIGHT              = 20165,
+    SPELL_PALADIN_112_SEAL_OF_WISDOM             = 20166,
+    SPELL_PALADIN_112_SEAL_OF_RIGHTEOUSNESS_A    = 20154,
+    SPELL_PALADIN_112_SEAL_OF_RIGHTEOUSNESS_B    = 21084,
+
     SPELL_PALADIN_GLYPH_OF_SALVATION             = 63225,
 
     SPELL_PALADIN_RIGHTEOUS_DEFENSE_TAUNT        = 31790,
@@ -982,8 +989,51 @@ public:
                 }
         }
 
-        GetCaster()->CastSpell(GetHitUnit(), _spellId, true);
-        GetCaster()->CastSpell(GetHitUnit(), spellId2, true);
+        // 1.12 (paladin-seals-112): ONE Judgement -- the active seal picks what lands on the target and is
+        // CONSUMED (3.3.5a keeps the seal and lets each Judgement spell name its own debuff).
+        //   Light / Wisdom / Justice -> that judgement debuff only (no direct damage);
+        //   Righteousness / Command  -> the direct-damage judgement only (no debuff);
+        //   any other seal (not in our data) or none -> the stock 3.3.5a behaviour, seal kept.
+        uint32 debuffId = _spellId;
+        uint32 damageId = spellId2;
+        uint32 sealId = 0;
+        Unit::AuraApplicationMap const& applied = GetCaster()->GetAppliedAuras();
+        for (Unit::AuraApplicationMap::const_iterator itr = applied.begin(); itr != applied.end() && !sealId; ++itr)
+        {
+            SpellInfo const* sealInfo = itr->second->GetBase()->GetSpellInfo();
+            if (sealInfo->SpellFamilyName != SPELLFAMILY_PALADIN || sealInfo->GetSpellSpecific() != SPELL_SPECIFIC_SEAL)
+                continue;
+
+            switch (sealInfo->Id)
+            {
+                case SPELL_PALADIN_112_SEAL_OF_LIGHT:
+                    debuffId = SPELL_PALADIN_JUDGEMENT_OF_LIGHT;
+                    damageId = 0;
+                    break;
+                case SPELL_PALADIN_112_SEAL_OF_WISDOM:
+                    debuffId = SPELL_PALADIN_JUDGEMENT_OF_WISDOM;
+                    damageId = 0;
+                    break;
+                case SPELL_PALADIN_112_SEAL_OF_JUSTICE:
+                    debuffId = SPELL_PALADIN_JUDGEMENT_OF_JUSTICE;
+                    damageId = 0;
+                    break;
+                case SPELL_PALADIN_112_SEAL_OF_RIGHTEOUSNESS_A:
+                case SPELL_PALADIN_112_SEAL_OF_RIGHTEOUSNESS_B:
+                case SPELL_PALADIN_SEAL_OF_COMMAND:
+                    debuffId = 0;
+                    break;
+                default:
+                    continue;
+            }
+
+            sealId = sealInfo->Id;
+        }
+
+        if (debuffId)
+            GetCaster()->CastSpell(GetHitUnit(), debuffId, true);
+        if (damageId)
+            GetCaster()->CastSpell(GetHitUnit(), damageId, true);
 
         // Tier 5 Holy - 2 Set
         if (GetCaster()->HasAura(SPELL_IMPROVED_JUDGEMENT))
@@ -1012,6 +1062,10 @@ public:
                 }
             }
         }
+
+        // 1.12: the Judgement spends the seal (after everything above that reads it)
+        if (sealId)
+            GetCaster()->RemoveAurasDueToSpell(sealId);
     }
 
     void Register() override
@@ -1354,7 +1408,17 @@ class spell_pal_judgement_of_light_heal : public AuraScript
         if (!attacker)
             return;
 
-        int32 bp = int32(attacker->CountPctFromMaxHealth(aurEff->GetAmount()));
+        // 1.12: a fixed heal by Seal of Light rank (25/34/49/61, spell 20267/20341-3), not a share of max health.
+        // We ship one rank of the seal, so the rank the paladin would have trained is picked by level (30/40/50/60).
+        static uint8 const rankLevels[] = { 30, 40, 50, 60 };
+        static int32 const rankHeal[] = { 25, 34, 49, 61 };
+        Unit* paladin = GetCaster();
+        uint8 level = paladin ? paladin->GetLevel() : 1;
+        uint8 rank = 0;
+        for (uint8 i = 1; i < 4; ++i)
+            if (level >= rankLevels[i])
+                rank = i;
+        int32 bp = rankHeal[rank];
         attacker->CastCustomSpell(attacker, SPELL_PALADIN_JUDGEMENT_OF_LIGHT_HEAL, &bp, nullptr, nullptr, true, nullptr, aurEff, GetCasterGUID());
     }
 
@@ -1387,8 +1451,17 @@ class spell_pal_judgement_of_wisdom_mana : public AuraScript
         if (!attacker)
             return;
 
-        SpellInfo const* spellInfo = sSpellMgr->AssertSpellInfo(SPELL_PALADIN_JUDGEMENT_OF_WISDOM_MANA);
-        int32 bp = int32(CalculatePct(attacker->GetCreateMana(), spellInfo->Effects[EFFECT_0].CalcValue()));
+        // 1.12: a fixed mana return by Seal of Wisdom rank (33/46/59, spell 20268/20352/20353), not a share of
+        // base mana. One rank of the seal is shipped, so the trained rank is picked by level (38/48/58).
+        static uint8 const rankLevels[] = { 38, 48, 58 };
+        static int32 const rankMana[] = { 33, 46, 59 };
+        Unit* paladin = GetCaster();
+        uint8 level = paladin ? paladin->GetLevel() : 1;
+        uint8 rank = 0;
+        for (uint8 i = 1; i < 3; ++i)
+            if (level >= rankLevels[i])
+                rank = i;
+        int32 bp = rankMana[rank];
         attacker->CastCustomSpell(attacker, SPELL_PALADIN_JUDGEMENT_OF_WISDOM_MANA, &bp, nullptr, nullptr, true, nullptr, aurEff, GetCasterGUID());
     }
 
