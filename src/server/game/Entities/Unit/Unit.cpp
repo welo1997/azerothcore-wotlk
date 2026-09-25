@@ -2073,6 +2073,30 @@ void Unit::DealMeleeDamage(CalcDamageInfo* damageInfo, bool durabilityLoss)
         Unit::DealDamage(this, victim, damageInfo->damages[i].damage, &cleanDamage, DIRECT_DAMAGE, SpellSchoolMask(damageInfo->damages[i].damageSchoolMask), nullptr, durabilityLoss);
     }
 
+    // 1.12 (paladin-seals-112): a paladin's melee damage refreshes the Judgement debuffs (Light, Wisdom, Justice, the
+    // Crusader, every rank) it put on the victim -- cMaNGOS Unit::DealMeleeDamage / vmangos Unit::DealDamage, both keyed
+    // on the debuff being a paladin spell with SPELL_ATTR_EX3_ALWAYS_HIT cast by the attacker.
+    if (IsPlayer() && (damageInfo->damages[0].damage + damageInfo->damages[1].damage) && victim->IsAlive())
+    {
+        for (Unit::AuraApplicationMap::const_iterator itr = victim->GetAppliedAuras().begin(); itr != victim->GetAppliedAuras().end(); ++itr)
+        {
+            Aura* aura = itr->second->GetBase();
+            if (aura->GetCasterGUID() != GetGUID())
+                continue;
+
+            switch (aura->GetId())
+            {
+                case 20184: case 20185: case 20186:                                // Justice, Light, Wisdom r1
+                case 20344: case 20345: case 20346: case 20354: case 20355:        // Light r2-4, Wisdom r2-3
+                case 21183: case 20188: case 20300: case 20301: case 20302: case 20303: // the Crusader r1-6
+                    aura->RefreshDuration();
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
     // gain rage if attack is fully blocked, dodged or parried
     if (HasActivePowerType(POWER_RAGE) && (damageInfo->TargetState == VICTIMSTATE_BLOCKS || damageInfo->TargetState == VICTIMSTATE_DODGE || damageInfo->TargetState == VICTIMSTATE_PARRY))
     {
@@ -9778,6 +9802,17 @@ uint32 Unit::SpellHealingBonusTaken(Unit* caster, SpellInfo const* spellProto, u
 
     // Taken fixed damage bonus auras
     int32 TakenAdvertisedBenefit = GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_HEALING, spellProto->GetSchoolMask());
+
+    // 1.12 Blessing of Light (paladin-seals-112): the blessed target takes a flat bonus from Holy Light (effect 1) and
+    // Flash of Light (effect 2); it enters the coefficient math like any +healing (cMaNGOS BlessingOfLight, vmangos SpellHealingBonusTaken)
+    if (spellProto->SpellFamilyName == SPELLFAMILY_PALADIN)
+    {
+        int32 blessingEffect = (spellProto->SpellFamilyFlags[0] & 0x80000000) ? 0 : ((spellProto->SpellFamilyFlags[0] & 0x40000000) ? 1 : -1);
+        if (blessingEffect >= 0)
+            for (uint32 blessingId : { 19977u, 19978u, 19979u })
+                if (AuraEffect const* blessing = GetAuraEffect(blessingId, blessingEffect))
+                    TakenAdvertisedBenefit += blessing->GetAmount();
+    }
 
     // Nourish cast - 20% bonus if target has Rejuvenation, Regrowth, Lifebloom, or Wild Growth from caster
     // Glyph of Nourish is handled by spell_dru_nourish script
