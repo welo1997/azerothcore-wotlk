@@ -60,7 +60,6 @@ public:
         {
             scheduler.CancelAll();
             me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
-            me->RestoreFaction();
             me->GetMap()->DoForAllPlayers([&](Player* p)
                 {
                     if (p->GetZoneId() == me->GetZoneId())
@@ -69,6 +68,14 @@ public:
                         p->RemoveAurasDueToSpell(SPELL_FROST_BREATH);
                     }
                 });
+        }
+
+        // 1.12: gossip_scripts 7 SET_FACTION 168 has no restore flag, so he stays
+        // hostile through evade/Reset() until respawn or restart.
+        void JustRespawned() override
+        {
+            me->RestoreFaction();
+            Reset();
         }
 
         void KilledUnit(Unit* victim) override
