@@ -18,6 +18,7 @@
 #include "CreatureScript.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
+#include "ScriptedGossip.h"
 #include "SpellScript.h"
 #include "SpellScriptLoader.h"
 #include "TaskScheduler.h"
@@ -27,6 +28,7 @@ enum Say
     SAY_TELEPORT = 0,
     SAY_AGGRO,
     SAY_KILL,
+    SAY_GOSSIP,
 };
 
 enum Spells
@@ -147,6 +149,19 @@ public:
             });
         }
     };
+
+    // 1.12: menu 15000 option 0 = say "You challenge the charge of the Blue
+    // Dragonflight? DIE, vermin." (broadcast 11017), turn hostile (faction 168)
+    // and attack the selector (vmangos gossip_scripts id 7; cmangos
+    // dbscripts_on_gossip 15000 = ATTACK_START). AC has no gossip scripts.
+    bool OnGossipSelect(Player* player, Creature* creature, uint32 /*sender*/, uint32 /*action*/) override
+    {
+        CloseGossipMenuFor(player);
+        creature->AI()->Talk(SAY_GOSSIP, player);
+        creature->SetFaction(FACTION_ENEMY);
+        creature->AI()->AttackStart(player);
+        return true;
+    }
 
     CreatureAI* GetAI(Creature* creature) const override
     {
