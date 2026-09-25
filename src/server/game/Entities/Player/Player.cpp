@@ -5097,8 +5097,7 @@ void Player::HandleBaseModFlatValue(BaseModGroup modGroup, float amount, bool ap
         return;
     }
 
-    std::fprintf(stderr, "vpdbg HBMFV %s grp=%u amt=%g apply=%d before=%g canmod=%d
-", GetName().c_str(), uint32(modGroup), amount, int(apply), m_auraBaseFlatMod[modGroup], int(CanModifyStats())); std::fflush(stderr);
+    std::fprintf(stderr, "vpdbg HBMFV %s grp=%u amt=%g apply=%d before=%g canmod=%d\n", GetName().c_str(), uint32(modGroup), amount, int(apply), m_auraBaseFlatMod[modGroup], int(CanModifyStats())); std::fflush(stderr);
     m_auraBaseFlatMod[modGroup] += apply ? amount : -amount;
     UpdateBaseModGroup(modGroup);
 }
@@ -7067,8 +7066,7 @@ void Player::_ApplyItemBonuses(ItemTemplate const* proto, uint8 slot, bool apply
     if (proto->ArmorDamageModifier > 0 && sScriptMgr->OnPlayerCanArmorDamageModifier(this))
         HandleStatFlatModifier(UNIT_MOD_ARMOR, TOTAL_VALUE, float(proto->ArmorDamageModifier), apply);
 
-    std::fprintf(stderr, "vpdbg IB %s slot=%u item=%u block=%u apply=%d
-", GetName().c_str(), uint32(slot), proto->ItemId, uint32(proto->Block), int(apply)); std::fflush(stderr);
+    std::fprintf(stderr, "vpdbg IB %s slot=%u item=%u block=%u apply=%d\n", GetName().c_str(), uint32(slot), proto->ItemId, uint32(proto->Block), int(apply)); std::fflush(stderr);
     if (proto->Block)
         HandleBaseModFlatValue(SHIELD_BLOCK_VALUE, float(proto->Block), apply);
 
@@ -7812,8 +7810,7 @@ void Player::_ApplyAllItemMods()
     {
         if (m_items[i])
         {
-            std::fprintf(stderr, "vpdbg AIM slot=%u item=%u broken=%d canuse=%d
-", uint32(i), m_items[i]->GetEntry(), int(m_items[i]->IsBroken()), int(CanUseAttackType(GetAttackBySlot(i)))); std::fflush(stderr);
+            std::fprintf(stderr, "vpdbg AIM slot=%u item=%u broken=%d canuse=%d\n", uint32(i), m_items[i]->GetEntry(), int(m_items[i]->IsBroken()), int(CanUseAttackType(GetAttackBySlot(i)))); std::fflush(stderr);
             if (m_items[i]->IsBroken() || !CanUseAttackType(GetAttackBySlot(i)))
                 continue;
 

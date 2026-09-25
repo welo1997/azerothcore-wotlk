@@ -538,8 +538,7 @@ void Player::UpdateAttackPowerAndDamage(bool ranged)
 
 void Player::UpdateShieldBlockValue()
 {
-    std::fprintf(stderr, "vpdbg USBV %s flat=%g str=%g val=%u canmod=%d
-", GetName().c_str(), m_auraBaseFlatMod[SHIELD_BLOCK_VALUE], GetStat(STAT_STRENGTH), GetShieldBlockValue(), int(CanModifyStats())); std::fflush(stderr);
+    std::fprintf(stderr, "vpdbg USBV %s flat=%g str=%g val=%u canmod=%d\n", GetName().c_str(), m_auraBaseFlatMod[SHIELD_BLOCK_VALUE], GetStat(STAT_STRENGTH), GetShieldBlockValue(), int(CanModifyStats())); std::fflush(stderr);
     SetUInt32Value(PLAYER_SHIELD_BLOCK, GetShieldBlockValue());
 }
 
