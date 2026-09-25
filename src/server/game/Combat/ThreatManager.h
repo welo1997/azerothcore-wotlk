@@ -26,6 +26,7 @@
 #ifndef ACORE_THREATMANAGER_H
 #define ACORE_THREATMANAGER_H
 
+#include <string>
 #include "Common.h"
 #include "IteratorPair.h"
 #include "ObjectGuid.h"
@@ -285,6 +286,7 @@ public:
     void ScaleThreat(float factor);
     void ModifyThreatByPercent(int32 percent) { if (percent) ScaleThreat(0.01f * float(100 + percent)); }
     void UpdateOffline();
+    std::string WvpDiag() const; // WBDIAG (temporary)
 
     void ClearThreat(); // dealloc's this
 

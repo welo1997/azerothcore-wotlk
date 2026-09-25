@@ -291,6 +291,8 @@ void CreatureAI::EngagementStart(Unit* who)
         return;
     }
     _isEngaged = true;
+    if (me->GetEntry() == 12397 || me->GetEntry() == 6109)
+        LOG_ERROR("wvp.diag", "[WBDIAG] {} EngagementStart who={} inCombat={} threatRefs={} evade={}", me->GetEntry(), who ? who->GetGUID().ToString() : "null", me->IsInCombat(), me->GetThreatMgr().GetThreatListSize(), me->HasUnitState(UNIT_STATE_EVADE));
 
     me->AtEngage(who);
 }
@@ -303,6 +305,8 @@ void CreatureAI::EngagementOver()
         return;
     }
     _isEngaged = false;
+    if (me->GetEntry() == 12397 || me->GetEntry() == 6109)
+        LOG_ERROR("wvp.diag", "[WBDIAG] {} EngagementOver inCombat={} threatRefs={} evade={} alive={}", me->GetEntry(), me->IsInCombat(), me->GetThreatMgr().GetThreatListSize(), me->HasUnitState(UNIT_STATE_EVADE), me->IsAlive());
 
     me->AtDisengage();
 }

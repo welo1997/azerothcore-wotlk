@@ -113,12 +113,14 @@ public:
 
         void Reset() override
         {
+            LOG_ERROR("wvp.diag", "[WBDIAG] 12397 Reset() engaged={} inCombat={}", me->IsEngaged(), me->IsInCombat());
             scheduler.CancelAll();
             me->GetMotionMaster()->MoveRandom(40.0f);
         }
 
         void JustEngagedWith(Unit* /*who*/) override
         {
+            LOG_ERROR("wvp.diag", "[WBDIAG] 12397 JustEngagedWith");
             scheduler
                 .Schedule(3s, 8s, [this](TaskContext context)
                 {
