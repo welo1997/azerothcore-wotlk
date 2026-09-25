@@ -16,10 +16,8 @@
  */
 
 #include "CreatureScript.h"
-#include "Log.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
-#include "ScriptedGossip.h"
 #include "SpellScript.h"
 #include "SpellScriptLoader.h"
 #include "TaskScheduler.h"
@@ -58,19 +56,6 @@ public:
 
         void Reset() override
         {
-            // Diagnostic only (encounters-remaining-2026-09-23.md §1): confirmed live that
-            // JustEngagedWith runs (23184 lands) but none of the six kit spells ever cast
-            // during 45s of sustained combat. Two live hypotheses -- (a) IsEngaged() reads
-            // false for this instance despite melee registering, so UpdateAI's
-            // `if (!UpdateVictim()) return;` skips scheduler.Update every tick without ever
-            // re-entering JustEngagedWith to explain it; (b) Reset() re-fires mid-combat
-            // (an evade loop) and CancelAll()s the scheduler before any >=7s-delayed cast
-            // lands. This line distinguishes them: if the fix is (b), this line prints
-            // repeatedly during a single sustained-combat window; if it prints once (or
-            // zero times after the initial aggro), suspect (a) instead.
-            LOG_ERROR("scripts.ai", "boss_azuregos: Reset() on {} (inCombat={}, engaged={})",
-                me->GetGUID().ToString(), me->IsInCombat(), me->IsEngaged());
-
             scheduler.CancelAll();
             me->SetNpcFlag(UNIT_NPC_FLAG_GOSSIP);
             me->RestoreFaction();
@@ -154,14 +139,7 @@ public:
         void UpdateAI(uint32 diff) override
         {
             if (!UpdateVictim())
-            {
-                // Diagnostic only (see Reset()): if this fires repeatedly while melee is
-                // landing on me, hypothesis (a) -- IsEngaged() false -- is confirmed.
-                if (me->IsInCombat())
-                    LOG_ERROR("scripts.ai", "boss_azuregos: UpdateVictim() false on {} while IsInCombat, engaged={}",
-                        me->GetGUID().ToString(), me->IsEngaged());
                 return;
-            }
 
             scheduler.Update(diff, [this]
             {
@@ -169,14 +147,6 @@ public:
             });
         }
     };
-
-    bool OnGossipSelect(Player* player, Creature* creature, uint32 /*sender*/, uint32 /*action*/) override
-    {
-        CloseGossipMenuFor(player);
-        creature->SetFaction(FACTION_ENEMY);
-        creature->AI()->AttackStart(player);
-        return true;
-    }
 
     CreatureAI* GetAI(Creature* creature) const override
     {
