@@ -1063,13 +1063,34 @@ void Player::UpdateCombatSkills(Unit* victim, WeaponAttackType attType, bool def
         lvldif = 3;
     }
 
-    float chance = float(3 * lvldif * skillDiff) / playerLevel;
-    if (!defence)
+    float chance = 0.0f;
+    if (defence)
     {
-        chance += chance * 0.02f * GetStat(STAT_INTELLECT);
+        // Defence keeps the old level-difference formula (vmangos Player::UpdateCombatSkills,
+        // defence branch, 1.12): no 1% floor, no intellect term.
+        chance = float(3 * lvldif * skillDiff) / playerLevel;
+    }
+    else
+    {
+        // 1.12 weapon skill-up curve (vmangos Player::UpdateCombatSkills weapon branch, which
+        // cites the Classic weapon-skills guide): independent of the mob's level, 100% up to
+        // 1/(0.9*50) of the way, falling to 50% at 90% of max, then to a level-dependent minimum.
+        if (currentSkillMax * 0.9f > currentSkillValue)
+        {
+            chance = currentSkillValue ? std::min(100.0f, float(currentSkillMax * 0.9f * 50) / currentSkillValue) : 100.0f;
+        }
+        else
+        {
+            chance = (0.5f - 0.0168966f * currentSkillValue * (300.0f / currentSkillMax) + 0.0152069f * currentSkillMax * (300.0f / currentSkillMax)) * 100.0f;
+            if (skillDiff <= 3)
+                chance *= (0.5f / (4 - skillDiff));
+        }
+
+        // Intellect adds up to 10 percentage points (additive, not the WotLK multiplicative 2%/point)
+        chance += std::min(10.0f, 0.02f * GetStat(STAT_INTELLECT));
     }
 
-    chance = chance < 1.0f ? 1.0f : chance; // minimum chance to increase skill is 1%
+    chance = std::min(100.0f, chance);
 
     LOG_DEBUG("entities.player", "Player::UpdateCombatSkills(defence:{}, playerLevel:{}, moblevel:{}) -> ({}/{}) chance to increase skill is {}%", defence, playerLevel, moblevel, currentSkillValue, currentSkillMax, chance);
 

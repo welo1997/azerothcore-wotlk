@@ -12869,7 +12869,7 @@ void Unit::ProcSkillsAndReactives(bool isVictim, Unit* target, uint32 procFlag, 
         if (IsPlayer() && !target->IsCharmedOwnedByPlayerOrPlayer())
         {
             // On melee based hit/miss/resist/parry/dodge need to update skill (for victim and attacker)
-            if (procExtra & (PROC_EX_NORMAL_HIT | PROC_EX_MISS | PROC_EX_RESIST | PROC_EX_PARRY | PROC_EX_DODGE))
+            if (procExtra & (PROC_EX_NORMAL_HIT | PROC_EX_CRITICAL_HIT | PROC_EX_MISS | PROC_EX_RESIST | PROC_EX_PARRY | PROC_EX_DODGE))
             {
                 ToPlayer()->UpdateCombatSkills(target, attType, isVictim, procSpell ? procSpell->m_weaponItem : nullptr);
             }
