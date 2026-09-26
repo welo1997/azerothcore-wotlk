@@ -1120,9 +1120,11 @@ void Creature::CalculateMinMaxDamage(WeaponAttackType attType, bool normalized, 
     }
 
     float attackPower      = GetTotalAttackPowerValue(attType);
-    float attackSpeedMulti = GetAPMultiplier(attType, normalized);
     float baseValue        = GetFlatModifierValue(unitMod, BASE_VALUE) + (attackPower / 14.0f) * variance;
-    float basePct          = GetPctModifierValue(unitMod, BASE_PCT) * attackSpeedMulti;
+    // No BaseAttackTime/1000 factor: 1.12 creature damage is per swing (MinMeleeDmg *
+    // DamageMultiplier), and every creature_classlevelstats / DamageModifier row is
+    // back-solved without one. Stock AC doubled all 2000ms creatures (Azuregos 6.6k vs 3.2k).
+    float basePct          = GetPctModifierValue(unitMod, BASE_PCT);
     float totalValue       = GetFlatModifierValue(unitMod, TOTAL_VALUE);
     float totalPct         = addTotalPct ? GetPctModifierValue(unitMod, TOTAL_PCT) : 1.0f;
     float dmgMultiplier    = GetCreatureTemplate()->DamageModifier; // = DamageModifier * _GetDamageMod(rank);
